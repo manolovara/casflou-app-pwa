@@ -1,0 +1,49 @@
+{
+  "name": "CasFlou - Sistema Operativo de Caja",
+  "short_name": "CasFlou",
+  "description": "Gestión de cobros y predicción de caja para PyMEs",
+  "scope": "/",
+  "start_url": "/queue.html",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#ffffff",
+  "theme_color": "#0066cc",
+  "categories": ["business", "finance"],
+  "screenshots": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 540 720'><rect fill='%230066cc' width='540' height='720'/><text x='270' y='360' font-size='60' fill='white' text-anchor='middle' dominant-baseline='middle'>CasFlou</text></svg>",
+      "sizes": "540x720",
+      "type": "image/svg+xml",
+      "form_factor": "narrow"
+    }
+  ],
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%230066cc' width='192' height='192' rx='40'/><text x='96' y='96' font-size='90' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>C</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect fill='%230066cc' width='192' height='192' rx='40'/><text x='96' y='96' font-size='90' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>C</text></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Ver Cola",
+      "short_name": "Cola",
+      "description": "Abre la cola de facturas del día",
+      "url": "/queue.html",
+      "icons": [
+        {
+          "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 96 96'><rect fill='%230066cc' width='96' height='96' rx='20'/><text x='48' y='48' font-size='45' font-weight='bold' fill='white' text-anchor='middle' dominant-baseline='middle'>📋</text></svg>",
+          "sizes": "96x96",
+          "type": "image/svg+xml"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou - Cola del Día</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0066cc">
+</head>
+<body>
+  <header class="app-header">
+    <h1>Cola del Día</h1>
+    <span class="total-outstanding" id="total">€0</span>
+    <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+  </header>
+
+  <div id="queue-container"
+       hx-get="http://localhost:8790/api/queue"
+       hx-trigger="load, every 30s"
+       hx-swap="innerHTML"
+       hx-indicator="#loading">
+
+    <div id="loading" class="skeleton-list htmx-indicator">
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+      <div class="skeleton-card"></div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Auth guard
+    if (!localStorage.getItem('casflou_session')) {
+      window.location.href = '/login.html';
+    }
+
+    // Configure HTMX to add auth headers and handle cross-origin requests
+    document.addEventListener('htmx:configRequest', (event) => {
+      event.detail.headers['Authorization'] = `Bearer ${localStorage.getItem('casflou_session')}`;
+    });
+
+    // Also set initial hx-headers attribute for non-dynamic headers
+    htmx.config.defaultIndicatorStyle = 'spinner';
+    htmx.config.refreshOnHistoryMiss = true;
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const token = localStorage.getItem('casflou_session');
+
+      await fetch('http://localhost:8790/api/auth/logout', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).catch(() => {});
+
+      localStorage.removeItem('casflou_session');
+      localStorage.removeItem('casflou_user');
+      window.location.href = '/login.html';
+    });
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    // Calculate total from rendered cards
+    function updateTotal() {
+      const cards = document.querySelectorAll('.queue-card');
+      let total = 0;
+      cards.forEach(card => {
+        const amountText = card.querySelector('.card-details p:nth-child(2)');
+        if (amountText) {
+          const match = amountText.textContent.match(/€([\d.]+)/);
+          if (match) total += parseFloat(match[1].replace('.', ''));
+        }
+      });
+      const totalEl = document.getElementById('total');
+      if (totalEl) {
+        totalEl.textContent = '€' + total.toLocaleString('es-ES', {minimumFractionDigits: 0});
+      }
+    }
+
+    // Watch for htmx swap completion
+    document.body.addEventListener('htmx:afterSettle', updateTotal);
+    updateTotal(); // Initial
+  </script>
+</body>
+</html>

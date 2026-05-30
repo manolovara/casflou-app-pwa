@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou</title>
+</head>
+<body>
+  <script>
+    // Redirect based on auth state
+    const hasToken = localStorage.getItem('casflou_session');
+    if (hasToken) {
+      window.location.href = '/queue.html';
+    } else {
+      window.location.href = '/login.html';
+    }
+  </script>
+</body>
+</html>
