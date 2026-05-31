@@ -16,7 +16,7 @@
   </header>
 
   <div id="queue-container"
-       hx-get="http://localhost:8790/api/queue"
+       hx-get="https://casflou-app-api.manolo-vara.workers.dev/api/queue"
        hx-trigger="load, every 30s"
        hx-swap="innerHTML"
        hx-indicator="#loading">
@@ -49,7 +49,7 @@
     document.getElementById('logout-btn').addEventListener('click', async () => {
       const token = localStorage.getItem('casflou_session');
 
-      await fetch('http://localhost:8790/api/auth/logout', {
+      await fetch('https://casflou-app-api.manolo-vara.workers.dev/api/auth/logout', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`
