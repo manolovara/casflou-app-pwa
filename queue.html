@@ -49,20 +49,47 @@
     const config = getConfig();
     document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
 
-    // Configure HTMX to add auth headers and allow cross-origin requests
-    document.addEventListener('htmx:configRequest', (event) => {
-      event.detail.headers['Authorization'] = `Bearer ${localStorage.getItem('casflou_session')}`;
-    });
-
-    // HTMX config - must run after htmx loads
+    // Configure HTMX before using it
     if (window.htmx) {
       htmx.config.defaultIndicatorStyle = 'spinner';
       htmx.config.refreshOnHistoryMiss = true;
 
-      // Set up dynamic queue URL using config
+      // Configure HTMX to add auth headers
+      document.addEventListener('htmx:configRequest', (event) => {
+        event.detail.headers['Authorization'] = `Bearer ${localStorage.getItem('casflou_session')}`;
+      });
+
+      // Set up queue URL - use fetch endpoint instead of htmx path
       const queueUrl = apiUrl('/api/queue');
       console.log('Queue URL:', queueUrl);
-      document.getElementById('queue-container').setAttribute('hx-get', queueUrl);
+
+      // Replace hx-get with custom fetch on load
+      const queueContainer = document.getElementById('queue-container');
+      queueContainer.removeAttribute('hx-get');
+
+      // Load queue data immediately
+      async function loadQueue() {
+        try {
+          const token = localStorage.getItem('casflou_session');
+          const response = await fetch(queueUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const html = await response.text();
+            queueContainer.innerHTML = html;
+            updateTotal();
+          }
+        } catch (error) {
+          console.error('Queue load error:', error);
+          queueContainer.innerHTML = '<div style="padding: 1rem; color: red;">Error loading queue</div>';
+        }
+      }
+
+      // Initial load
+      loadQueue();
+
+      // Reload every 30 seconds
+      setInterval(loadQueue, 30000);
     } else {
       console.error('htmx not loaded');
     }
@@ -105,10 +132,6 @@
         totalEl.textContent = '€' + total.toLocaleString('es-ES', {minimumFractionDigits: 0});
       }
     }
-
-    // Watch for htmx swap completion
-    document.body.addEventListener('htmx:afterSettle', updateTotal);
-    updateTotal(); // Initial
 
     // Log environment on load
     console.log(`🌍 Queue loaded with: ${config.name} (${config.description})`);
