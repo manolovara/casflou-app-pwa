@@ -577,6 +577,150 @@ button:not([class]):active {
   color: var(--primary);
 }
 
+/* ─────── MODAL ─────── */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background: white;
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+  width: 90vw;
+  max-width: 500px;
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.modal-header h3 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: var(--text-tertiary);
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.modal-close:active {
+  background: var(--neutral-light);
+  color: var(--text);
+}
+
+.modal-body {
+  padding: 1rem;
+}
+
+.modal-footer {
+  display: flex;
+  gap: 0.5rem;
+  padding: 1rem;
+  border-top: 1px solid var(--border-light);
+  justify-content: flex-end;
+}
+
+.modal-footer button {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+}
+
+/* ─────── SNOOZE ─────── */
+.snooze-quick {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  flex-wrap: wrap;
+}
+
+.snooze-btn {
+  flex: 1;
+  min-width: 80px;
+  padding: 0.5rem;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  transition: all 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.snooze-btn:active {
+  background: var(--primary);
+  color: white;
+  border-color: var(--primary);
+  transform: scale(0.98);
+}
+
+.btn-snooze {
+  background: var(--neutral-light);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.btn-snooze:active {
+  background: var(--border);
+  border-color: var(--primary);
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.875rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(0, 102, 204, 0.1);
+}
+
+.form-input textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
 /* ─────── RESPONSIVE ─────── */
 @media (min-width: 480px) {
   .queue-card {
@@ -602,6 +746,10 @@ button:not([class]):active {
 @media (min-width: 640px) {
   .dashboard-grid {
     grid-template-columns: 1fr 1fr;
+  }
+
+  .modal-content {
+    width: 500px;
   }
 }
 

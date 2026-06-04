@@ -13,20 +13,66 @@
     <h1>Cola del Día</h1>
     <span class="total-outstanding" id="total">€0</span>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <a href="/dashboard.html" class="icon-btn" title="Panel de control">📊</a>
       <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
       <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
     </div>
   </header>
 
-  <div id="queue-container"
-       hx-trigger="load, every 30s"
-       hx-swap="innerHTML"
-       hx-indicator="#loading">
-
+  <div id="queue-container">
     <div id="loading" class="skeleton-list htmx-indicator">
       <div class="skeleton-card"></div>
       <div class="skeleton-card"></div>
       <div class="skeleton-card"></div>
+    </div>
+  </div>
+
+  <!-- Snooze Modal -->
+  <div id="snooze-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>⏸️ Posponer esta factura</h3>
+        <button class="modal-close" id="snooze-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Quick snooze buttons -->
+        <div class="snooze-quick">
+          <p style="margin: 0 0 0.5rem 0; font-size: 0.875rem; color: #666;">Opción rápida:</p>
+          <button class="snooze-btn" data-days="7">1 Semana</button>
+          <button class="snooze-btn" data-days="14">2 Semanas</button>
+          <button class="snooze-btn" data-days="30">1 Mes</button>
+        </div>
+
+        <!-- Or use date picker -->
+        <div class="form-group">
+          <label for="snooze-date">O elige una fecha:</label>
+          <input type="date" id="snooze-date" class="form-input" />
+        </div>
+
+        <!-- Reason dropdown -->
+        <div class="form-group">
+          <label for="snooze-reason">Motivo (obligatorio):</label>
+          <select id="snooze-reason" class="form-input">
+            <option value="">Selecciona un motivo...</option>
+          </select>
+        </div>
+
+        <!-- Custom reason input (hidden by default) -->
+        <div class="form-group" id="custom-reason-wrapper" style="display: none;">
+          <label for="snooze-custom-reason">Nuevo motivo:</label>
+          <input type="text" id="snooze-custom-reason" class="form-input" placeholder="Describe el motivo..." />
+        </div>
+
+        <!-- Reminder text -->
+        <div class="form-group">
+          <label for="snooze-reminder">Nota para el seguimiento (opcional):</label>
+          <textarea id="snooze-reminder" class="form-input" rows="2" placeholder="Ej: Llamar al tesorero el lunes..."></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-secondary" id="snooze-cancel-btn">Cancelar</button>
+        <button class="btn-primary" id="snooze-confirm-btn">Posponer</button>
+      </div>
     </div>
   </div>
 
@@ -90,6 +136,135 @@
 
       // Reload every 30 seconds
       setInterval(loadQueue, 30000);
+
+      // Snooze modal logic
+      let currentSnoozeInvoiceId = null;
+
+      // Load snooze reasons when page loads
+      async function loadSnoozeReasons() {
+        try {
+          const token = localStorage.getItem('casflou_session');
+          const reasonsResp = await fetch(apiUrl('/api/snooze-reasons'), {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (reasonsResp.ok) {
+            const data = await reasonsResp.json();
+            const select = document.getElementById('snooze-reason');
+            select.innerHTML = '<option value="">Selecciona un motivo...</option>';
+            data.default_reasons.forEach(r => {
+              select.innerHTML += `<option value="${r}">${r}</option>`;
+            });
+            data.custom_reasons.forEach(r => {
+              select.innerHTML += `<option value="${r}">${r}</option>`;
+            });
+            select.innerHTML += '<option value="custom">➕ Añadir nuevo motivo...</option>';
+          }
+        } catch (error) {
+          console.error('Error loading snooze reasons:', error);
+        }
+      }
+
+      loadSnoozeReasons();
+
+      // Open snooze modal when snooze button clicked (delegated)
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-snooze')) {
+          const invoiceId = e.target.dataset.invoiceId;
+          openSnoozeModal(invoiceId);
+        }
+      });
+
+      function openSnoozeModal(invoiceId) {
+        currentSnoozeInvoiceId = invoiceId;
+        document.getElementById('snooze-modal').style.display = 'flex';
+
+        // Set default date to 7 days from now
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 7);
+        document.getElementById('snooze-date').value = tomorrow.toISOString().split('T')[0];
+
+        // Clear form fields
+        document.getElementById('snooze-reason').value = '';
+        document.getElementById('snooze-custom-reason').value = '';
+        document.getElementById('snooze-reminder').value = '';
+        document.getElementById('custom-reason-wrapper').style.display = 'none';
+      }
+
+      // Quick snooze buttons (calculate date)
+      document.querySelectorAll('.snooze-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const days = parseInt(e.target.dataset.days);
+          const futureDate = new Date();
+          futureDate.setDate(futureDate.getDate() + days);
+          document.getElementById('snooze-date').value = futureDate.toISOString().split('T')[0];
+        });
+      });
+
+      // Custom reason toggle
+      document.getElementById('snooze-reason').addEventListener('change', (e) => {
+        if (e.target.value === 'custom') {
+          document.getElementById('custom-reason-wrapper').style.display = 'block';
+          document.getElementById('snooze-custom-reason').focus();
+        } else {
+          document.getElementById('custom-reason-wrapper').style.display = 'none';
+        }
+      });
+
+      // Close modal handlers
+      document.getElementById('snooze-close-btn').addEventListener('click', closeSnoozeModal);
+      document.getElementById('snooze-cancel-btn').addEventListener('click', closeSnoozeModal);
+
+      function closeSnoozeModal() {
+        document.getElementById('snooze-modal').style.display = 'none';
+        currentSnoozeInvoiceId = null;
+      }
+
+      // Close modal when clicking outside
+      document.getElementById('snooze-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'snooze-modal') {
+          closeSnoozeModal();
+        }
+      });
+
+      // Confirm snooze
+      document.getElementById('snooze-confirm-btn').addEventListener('click', async () => {
+        const reason = document.getElementById('snooze-reason').value;
+        const customReason = document.getElementById('snooze-custom-reason').value;
+        const finalReason = reason === 'custom' ? customReason : reason;
+        const reminderText = document.getElementById('snooze-reminder').value;
+        const snoozedUntil = document.getElementById('snooze-date').value;
+
+        if (!finalReason || !snoozedUntil) {
+          alert('Por favor completa fecha y motivo');
+          return;
+        }
+
+        try {
+          const token = localStorage.getItem('casflou_session');
+          const response = await fetch(apiUrl(`/api/invoices/${currentSnoozeInvoiceId}/snooze`), {
+            method: 'PUT',
+            headers: {
+              'Authorization': `Bearer ${token}`,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              snoozed_until: snoozedUntil,
+              reason: finalReason,
+              reminder_text: reminderText || null
+            })
+          });
+
+          if (response.ok) {
+            closeSnoozeModal();
+            await loadQueue(); // Reload queue to remove snoozed invoice
+          } else {
+            alert('Error al posponer la factura');
+          }
+        } catch (error) {
+          console.error('Error snoozing invoice:', error);
+          alert('Error de conexión');
+        }
+      });
     } else {
       console.error('htmx not loaded');
     }
