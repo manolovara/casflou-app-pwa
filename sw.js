@@ -1,7 +1,7 @@
 // Service Worker for CasFlou PWA
 // Provides offline support and caching
 
-const CACHE_NAME = 'casflou-v1';
+const CACHE_NAME = 'casflou-v2';
 const STATIC_ASSETS = [
   '/',
   '/login.html',
@@ -15,9 +15,19 @@ const STATIC_ASSETS = [
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(STATIC_ASSETS).catch(() => {
-        // Fail silently if resources aren't available yet
-      });
+      // Cache assets individually to avoid failing on redirects
+      return Promise.all(
+        STATIC_ASSETS.map((url) =>
+          fetch(url)
+            .then((response) => {
+              // Only cache successful, non-redirect responses
+              if (response.ok && response.status < 300) {
+                return cache.put(url, response);
+              }
+            })
+            .catch(() => {})
+        )
+      );
     })
   );
   self.skipWaiting();
@@ -52,10 +62,10 @@ self.addEventListener('fetch', (event) => {
   // API requests: network first
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request)
+      fetch(request, { redirect: 'follow' })
         .then((response) => {
-          // Cache successful API responses
-          if (response.ok) {
+          // Only cache successful, non-redirect responses
+          if (response.ok && response.status < 300) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, clone);
@@ -74,20 +84,28 @@ self.addEventListener('fetch', (event) => {
   // Static assets: cache first
   event.respondWith(
     caches.match(request).then((response) => {
-      return response || fetch(request).then((response) => {
-        if (response.ok) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clone);
-          });
-        }
+      // Skip cached redirects, always fetch fresh
+      if (response && response.status < 300) {
         return response;
-      }).catch(() => {
-        // Return login page on offline navigation
-        if (request.mode === 'navigate') {
-          return caches.match('/login.html');
-        }
-      });
+      }
+
+      return fetch(request, { redirect: 'follow' })
+        .then((response) => {
+          // Only cache successful, non-redirect responses
+          if (response.ok && response.status < 300) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, clone);
+            });
+          }
+          return response;
+        })
+        .catch(() => {
+          // Return login page on offline navigation
+          if (request.mode === 'navigate') {
+            return caches.match('/login.html');
+          }
+        });
     })
   );
 });
