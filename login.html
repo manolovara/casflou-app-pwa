@@ -136,7 +136,7 @@
         // Store token and redirect
         localStorage.setItem('casflou_session', data.token);
         localStorage.setItem('casflou_user', JSON.stringify(data.user));
-        window.location.href = '/queue.html';
+        window.location.href = '/queue';
       } catch (error) {
         errorDiv.textContent = 'Error de conexión. Intenta de nuevo.';
         errorDiv.style.display = 'block';
