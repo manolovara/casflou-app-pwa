@@ -30,9 +30,9 @@
     </div>
   </div>
 
-  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js" defer></script>
   <script src="/js/config.js"></script>
   <script src="/js/auth.js"></script>
+  <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script>
     // Auth guard
     if (!localStorage.getItem('casflou_session')) {
@@ -49,18 +49,23 @@
     const config = getConfig();
     document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
 
-    // Set up dynamic queue URL using config
-    const queueUrl = apiUrl('/api/queue');
-    document.getElementById('queue-container').setAttribute('hx-get', queueUrl);
-
-    // Configure HTMX to add auth headers
+    // Configure HTMX to add auth headers and allow cross-origin requests
     document.addEventListener('htmx:configRequest', (event) => {
       event.detail.headers['Authorization'] = `Bearer ${localStorage.getItem('casflou_session')}`;
     });
 
-    // HTMX config
-    htmx.config.defaultIndicatorStyle = 'spinner';
-    htmx.config.refreshOnHistoryMiss = true;
+    // HTMX config - must run after htmx loads
+    if (window.htmx) {
+      htmx.config.defaultIndicatorStyle = 'spinner';
+      htmx.config.refreshOnHistoryMiss = true;
+
+      // Set up dynamic queue URL using config
+      const queueUrl = apiUrl('/api/queue');
+      console.log('Queue URL:', queueUrl);
+      document.getElementById('queue-container').setAttribute('hx-get', queueUrl);
+    } else {
+      console.error('htmx not loaded');
+    }
 
     // Logout
     document.getElementById('logout-btn').addEventListener('click', async () => {
