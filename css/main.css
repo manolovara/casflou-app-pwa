@@ -698,6 +698,67 @@ button:not([class]):active {
   border-color: var(--primary);
 }
 
+.btn-debtor {
+  background: white;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.btn-debtor:active {
+  background: #f0f4ff;
+  border-color: var(--primary);
+}
+
+/* ─────── TONE SELECTOR ─────── */
+.tone-options {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.tone-btn {
+  padding: 1rem;
+  background: white;
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.tone-btn:active {
+  border-color: var(--primary);
+  background: rgba(0, 102, 204, 0.05);
+  transform: scale(0.98);
+}
+
+.tone-icon {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.tone-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--text);
+  margin-bottom: 0.25rem;
+}
+
+.tone-desc {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+
 .form-input {
   width: 100%;
   padding: 0.875rem;

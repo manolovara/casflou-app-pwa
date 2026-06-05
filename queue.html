@@ -28,6 +28,39 @@
     </div>
   </div>
 
+  <!-- Tone Selector Modal -->
+  <div id="tone-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>🎯 Selecciona el tono del mensaje</h3>
+        <button class="modal-close" id="tone-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="margin-bottom: 1rem; color: #666;">Elige cómo quieres que suene el mensaje:</p>
+        <div class="tone-options">
+          <button class="tone-btn" data-tone="cordial">
+            <div class="tone-icon">😊</div>
+            <div class="tone-name">Cordial</div>
+            <div class="tone-desc">Amable y personal</div>
+            <small style="display:block; margin-top:0.25rem;">Ej: "Esperamos recibir tu pago. ¡Gracias!"</small>
+          </button>
+          <button class="tone-btn" data-tone="balanced">
+            <div class="tone-icon">📋</div>
+            <div class="tone-name">Equilibrado</div>
+            <div class="tone-desc">Profesional y claro</div>
+            <small style="display:block; margin-top:0.25rem;">Ej: "Solicitamos el pago de la factura..."</small>
+          </button>
+          <button class="tone-btn" data-tone="formal">
+            <div class="tone-icon">⚖️</div>
+            <div class="tone-name">Formal</div>
+            <div class="tone-desc">Serio y urgente</div>
+            <small style="display:block; margin-top:0.25rem;">Ej: "Requerimos el pago inmediato..."</small>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Snooze Modal -->
   <div id="snooze-modal" class="modal" style="display: none;">
     <div class="modal-content">
@@ -106,6 +139,30 @@
         event.detail.headers['Authorization'] = `Bearer ${localStorage.getItem('casflou_session')}`;
       });
 
+      // Handle log response for auto-advance
+      document.addEventListener('htmx:afterRequest', (event) => {
+        if (event.detail.xhr.responseURL.includes('/api/log')) {
+          try {
+            const response = JSON.parse(event.detail.xhr.responseText);
+            if (response.ok && response.next_invoice_id) {
+              // Auto-scroll to next invoice card after a brief delay
+              setTimeout(() => {
+                const nextCard = document.querySelector(`[data-invoice-id='${response.next_invoice_id}']`);
+                if (nextCard) {
+                  nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  nextCard.style.outline = '3px solid #0066cc';
+                  setTimeout(() => {
+                    nextCard.style.outline = 'none';
+                  }, 2000);
+                }
+              }, 300);
+            }
+          } catch (e) {
+            // Not JSON, ignore
+          }
+        }
+      });
+
       // Set up queue URL - use fetch endpoint instead of htmx path
       const queueUrl = apiUrl('/api/queue');
       console.log('Queue URL:', queueUrl);
@@ -140,6 +197,105 @@
 
       // Snooze modal logic
       let currentSnoozeInvoiceId = null;
+
+      // ─────── TONE SELECTOR LOGIC ─────────
+      let currentToneDraftInvoiceId = null;
+
+      // Intercept draft button clicks (delegated)
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-draft')) {
+          e.preventDefault();
+          const invoiceId = e.target.closest('.queue-card').dataset.invoiceId;
+          openToneModal(invoiceId);
+        }
+      });
+
+      // ─────── DEBTOR PROFILE LOGIC ─────────
+      // Intercept debtor profile button clicks (delegated)
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('btn-debtor')) {
+          e.preventDefault();
+          const debtorId = e.target.dataset.debtorId;
+          openDebtorProfile(debtorId);
+        }
+      });
+
+      async function openDebtorProfile(debtorId) {
+        if (!debtorId) return;
+
+        try {
+          const token = localStorage.getItem('casflou_session');
+          const response = await fetch(apiUrl(`/api/client/${debtorId}`), {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const html = await response.text();
+            // Find the first queue card and insert the profile into its card-draft area
+            const card = document.querySelector('[data-debtor-id]');
+            if (card) {
+              const profileContainer = document.createElement('div');
+              profileContainer.style.marginTop = '1rem';
+              profileContainer.innerHTML = html;
+              card.closest('.queue-card')?.insertAdjacentElement('afterend', profileContainer);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading debtor profile:', error);
+          alert('Error loading profile');
+        }
+      }
+
+      function openToneModal(invoiceId) {
+        currentToneDraftInvoiceId = invoiceId;
+        document.getElementById('tone-modal').style.display = 'flex';
+      }
+
+      function closeToneModal() {
+        document.getElementById('tone-modal').style.display = 'none';
+        currentToneDraftInvoiceId = null;
+      }
+
+      // Close tone modal handlers
+      document.getElementById('tone-close-btn')?.addEventListener('click', closeToneModal);
+
+      // Close tone modal when clicking outside
+      document.getElementById('tone-modal')?.addEventListener('click', (e) => {
+        if (e.target.id === 'tone-modal') {
+          closeToneModal();
+        }
+      });
+
+      // Tone button handlers
+      document.querySelectorAll('.tone-btn').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          const tone = e.currentTarget.dataset.tone;
+          const invoiceId = currentToneDraftInvoiceId;
+
+          if (!invoiceId) return;
+
+          // Load draft with selected tone
+          const draftUrl = apiUrl(`/api/draft?invoice_id=${invoiceId}&tone=${tone}`);
+          try {
+            const token = localStorage.getItem('casflou_session');
+            const response = await fetch(draftUrl, {
+              headers: { 'Authorization': `Bearer ${token}` }
+            });
+            if (response.ok) {
+              const html = await response.text();
+              const card = document.querySelector(`[data-invoice-id='${invoiceId}']`);
+              if (card) {
+                const draftContainer = card.querySelector('.card-draft');
+                draftContainer.innerHTML = html;
+                draftContainer.style.display = 'block';
+              }
+            }
+          } catch (error) {
+            console.error('Error loading draft:', error);
+          }
+
+          closeToneModal();
+        });
+      });
 
       // Load snooze reasons when page loads
       async function loadSnoozeReasons() {

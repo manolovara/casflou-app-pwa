@@ -19,30 +19,9 @@
     </div>
   </header>
 
-  <div id="dashboard-container" class="dashboard-grid">
-    <!-- Cash Briefing -->
-    <div class="dashboard-card">
-      <h2>💰 Situación de Caja</h2>
-      <div id="cash-briefing" style="text-align: center; padding: 1rem 0;">
-        <div style="font-size: 0.875rem; color: #999;">Cargando...</div>
-      </div>
-    </div>
-
-    <!-- Collections Forecast -->
-    <div class="dashboard-card">
-      <h2>📅 Previsión de Cobros</h2>
-      <div id="forecast" style="padding: 1rem 0;">
-        <div style="font-size: 0.875rem; color: #999; text-align: center;">Cargando...</div>
-      </div>
-    </div>
-
-    <!-- Promise Tracking -->
-    <div class="dashboard-card" style="grid-column: 1 / -1;">
-      <h2>🤝 Promesas de Pago</h2>
-      <div id="promises" style="padding: 1rem 0;">
-        <div style="font-size: 0.875rem; color: #999; text-align: center;">Cargando...</div>
-      </div>
-    </div>
+  <div id="dashboard-container">
+    <div class="skeleton-card" style="height: 200px;"></div>
+    <div class="skeleton-card" style="height: 300px; margin-top: 1rem;"></div>
   </div>
 
   <script src="/js/config.js"></script>
@@ -53,169 +32,43 @@
       window.location.href = '/login.html';
     }
 
-    // Load saved environment preference
-    const savedEnv = localStorage.getItem('casflou-env');
-    if (savedEnv && (savedEnv === 'development' || savedEnv === 'production')) {
-      ENV.ACTIVE = savedEnv;
-    }
-
-    // Display current environment
+    // Load environment badge
     const config = getConfig();
     document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
 
-    // Load dashboard data
+    // Load dashboard
     async function loadDashboard() {
       try {
         const token = localStorage.getItem('casflou_session');
         const response = await fetch(apiUrl('/api/dashboard'), {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-
         if (response.ok) {
-          const data = await response.json();
-          renderDashboard(data);
+          const html = await response.text();
+          const container = document.getElementById('dashboard-container');
+          container.innerHTML = html;
         } else {
-          document.getElementById('dashboard-container').innerHTML = '<div style="padding: 2rem; color: red;">Error cargando panel</div>';
+          throw new Error('Failed to load');
         }
       } catch (error) {
         console.error('Dashboard load error:', error);
-        document.getElementById('dashboard-container').innerHTML = '<div style="padding: 2rem; color: red;">Error de conexión</div>';
+        const container = document.getElementById('dashboard-container');
+        container.innerHTML = '<div style="padding: 2rem; color: red; text-align: center;">Error cargando dashboard</div>';
       }
     }
 
-    function renderDashboard(data) {
-      renderCashBriefing(data.cash_briefing);
-      renderForecast(data.forecast);
-      renderPromises(data.promises);
-    }
+    // Initial load
+    loadDashboard();
 
-    function renderCashBriefing(briefing) {
-      const trendIcon = briefing.trend_direction === 'up' ? '↗️ ' : briefing.trend_direction === 'down' ? '↘️ ' : '→ ';
-      const trendText = `${trendIcon}${briefing.trend_percent > 0 ? '+' : ''}${briefing.trend_percent}% vs últimos 7 días`;
-
-      let html = `
-        <div style="margin-bottom: 1.5rem;">
-          <div style="font-size: 2rem; font-weight: 700; color: var(--primary); margin-bottom: 0.5rem;">
-            €${briefing.total_outstanding.toLocaleString('es-ES')}
-          </div>
-          <div style="font-size: 0.875rem; color: #999;">${trendText}</div>
-        </div>
-      `;
-
-      if (briefing.urgent.count > 0) {
-        html += `
-          <div class="metric">
-            <span class="metric-label">🔴 Urgentes</span>
-            <span class="metric-value" style="color: #ef5350;">€${briefing.urgent.amount.toLocaleString('es-ES')} (${briefing.urgent.count})</span>
-          </div>
-        `;
-      }
-
-      if (briefing.high.count > 0) {
-        html += `
-          <div class="metric">
-            <span class="metric-label">🟠 Alta prioridad</span>
-            <span class="metric-value" style="color: #ffa726;">€${briefing.high.amount.toLocaleString('es-ES')} (${briefing.high.count})</span>
-          </div>
-        `;
-      }
-
-      if (briefing.normal.count > 0) {
-        html += `
-          <div class="metric">
-            <span class="metric-label">🟢 Normal</span>
-            <span class="metric-value" style="color: #9ccc65;">€${briefing.normal.amount.toLocaleString('es-ES')} (${briefing.normal.count})</span>
-          </div>
-        `;
-      }
-
-      document.getElementById('cash-briefing').innerHTML = html;
-    }
-
-    function renderForecast(forecast) {
-      let html = '';
-
-      const weeks = [
-        { key: 'week_1', label: 'Semana 1' },
-        { key: 'week_2', label: 'Semana 2' },
-        { key: 'week_3', label: 'Semana 3' },
-        { key: 'week_4', label: 'Semana 4+' }
-      ];
-
-      weeks.forEach(week => {
-        const data = forecast[week.key];
-        if (data.amount > 0 || data.count > 0) {
-          html += `
-            <div class="metric">
-              <span class="metric-label">${week.label}</span>
-              <span class="metric-value" style="color: var(--success);">€${data.amount.toLocaleString('es-ES')}</span>
-            </div>
-          `;
-        }
-      });
-
-      if (html === '') {
-        html = '<div style="color: #999; text-align: center; padding: 1rem;">Sin cobros esperados</div>';
-      }
-
-      document.getElementById('forecast').innerHTML = html;
-    }
-
-    function renderPromises(promises) {
-      if (!promises || promises.length === 0) {
-        document.getElementById('promises').innerHTML = '<div style="color: #999; text-align: center; padding: 1rem;">No hay promesas pendientes</div>';
-        return;
-      }
-
-      let html = '<div style="overflow-x: auto;">';
-      html += '<table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">';
-      html += '<thead><tr style="border-bottom: 2px solid var(--border);">';
-      html += '<th style="text-align: left; padding: 0.5rem; font-weight: 600;">Deudor</th>';
-      html += '<th style="text-align: right; padding: 0.5rem; font-weight: 600;">Importe</th>';
-      html += '<th style="text-align: center; padding: 0.5rem; font-weight: 600;">Fecha</th>';
-      html += '<th style="text-align: center; padding: 0.5rem; font-weight: 600;">Probabilidad</th>';
-      html += '</tr></thead><tbody>';
-
-      promises.forEach((p, idx) => {
-        const promiseDate = new Date(p.promised_date);
-        const dateStr = promiseDate.toLocaleDateString('es-ES', { month: 'short', day: 'numeric' });
-        const borderColor = idx < promises.length - 1 ? 'var(--border-light)' : 'transparent';
-
-        html += `
-          <tr style="border-bottom: 1px solid ${borderColor};">
-            <td style="padding: 0.75rem 0.5rem; text-align: left;">
-              <strong>${p.debtor_name}</strong><br>
-              <span style="color: #999; font-size: 0.75rem;">INV-${p.invoice_number}</span>
-            </td>
-            <td style="padding: 0.75rem 0.5rem; text-align: right;">
-              <strong>€${p.amount.toLocaleString('es-ES')}</strong>
-            </td>
-            <td style="padding: 0.75rem 0.5rem; text-align: center;">
-              ${dateStr}
-            </td>
-            <td style="padding: 0.75rem 0.5rem; text-align: center;">
-              <span style="background: ${p.likelihood_percent >= 70 ? '#c8e6c9' : p.likelihood_percent >= 40 ? '#fff9c4' : '#ffccbc'}; padding: 0.25rem 0.5rem; border-radius: 4px; font-weight: 600;">
-                ${p.likelihood_percent}%
-              </span>
-            </td>
-          </tr>
-        `;
-      });
-
-      html += '</tbody></table></div>';
-      document.getElementById('promises').innerHTML = html;
-    }
+    // Reload every 60 seconds
+    setInterval(loadDashboard, 60000);
 
     // Logout
     document.getElementById('logout-btn').addEventListener('click', async () => {
       const token = localStorage.getItem('casflou_session');
-      const logoutUrl = apiUrl('/api/auth/logout');
-
-      await fetch(logoutUrl, {
+      await fetch(apiUrl('/api/auth/logout'), {
         method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       }).catch(() => {});
 
       localStorage.removeItem('casflou_session');
@@ -227,12 +80,6 @@
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
-
-    // Load dashboard on page load
-    loadDashboard();
-
-    // Reload every 60 seconds
-    setInterval(loadDashboard, 60000);
 
     console.log(`🌍 Dashboard loaded with: ${config.name} (${config.description})`);
   </script>
