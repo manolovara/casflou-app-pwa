@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou - Configuración</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0066cc">
+</head>
+<body>
+  <header class="app-header">
+    <h1>⚙️ Configuración</h1>
+    <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
+    <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+  </header>
+
+  <div class="settings-container">
+    <div class="settings-panel">
+      <h2>💬 Preferencias de Tono por Riesgo</h2>
+      <p style="color: #666; font-size: 0.9rem; margin-bottom: 1.5rem;">
+        Configura el tono de los mensajes automáticos según el nivel de riesgo del cliente.
+      </p>
+
+      <div class="tone-selector">
+        <!-- Risk A: Low Risk -->
+        <div class="tone-group">
+          <label for="tone-a">
+            <span style="font-weight: bold;">🟢 Riesgo A (Bajo Riesgo)</span>
+            <span style="display: block; font-size: 0.85rem; color: #666; margin-top: 4px;">Clientes de confianza, buen histórico</span>
+          </label>
+          <select id="tone-a">
+            <option value="formal">Formal - Profesional y correcto</option>
+            <option value="balanced">Balanceado - Neutral y directo</option>
+            <option value="cordial">Cordial - Amable y colaborativo</option>
+          </select>
+        </div>
+
+        <!-- Risk B: Medium Risk -->
+        <div class="tone-group">
+          <label for="tone-b">
+            <span style="font-weight: bold;">🟠 Riesgo B (Riesgo Medio)</span>
+            <span style="display: block; font-size: 0.85rem; color: #666; margin-top: 4px;">Clientes normales, comportamiento mixto</span>
+          </label>
+          <select id="tone-b">
+            <option value="formal">Formal - Profesional y correcto</option>
+            <option value="balanced">Balanceado - Neutral y directo</option>
+            <option value="cordial">Cordial - Amable y colaborativo</option>
+          </select>
+        </div>
+
+        <!-- Risk C: High Risk -->
+        <div class="tone-group">
+          <label for="tone-c">
+            <span style="font-weight: bold;">🔴 Riesgo C (Alto Riesgo)</span>
+            <span style="display: block; font-size: 0.85rem; color: #666; margin-top: 4px;">Clientes con historial de morosidad</span>
+          </label>
+          <select id="tone-c">
+            <option value="formal">Formal - Profesional y correcto</option>
+            <option value="balanced">Balanceado - Neutral y directo</option>
+            <option value="cordial">Cordial - Amable y colaborativo</option>
+          </select>
+        </div>
+      </div>
+
+      <div style="display: flex; gap: 1rem; margin-top: 2rem;">
+        <button class="btn-primary" id="save-btn" style="flex: 1;">💾 Guardar Preferencias</button>
+        <button class="btn-secondary" id="back-btn" style="flex: 1;">← Volver a Cola</button>
+      </div>
+
+      <div id="success-message" style="display: none; color: #4caf50; margin-top: 1rem; text-align: center; font-size: 0.9rem;">
+        ✅ Preferencias guardadas correctamente
+      </div>
+
+      <div id="error-message" style="display: none; color: var(--danger); margin-top: 1rem; text-align: center; font-size: 0.9rem;"></div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Auth guard
+    if (!localStorage.getItem('casflou_session')) {
+      window.location.href = '/login.html';
+    }
+
+    // Display current environment
+    const config = getConfig();
+    document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
+
+    // Load saved environment preference
+    const savedEnv = localStorage.getItem('casflou-env');
+    if (savedEnv && (savedEnv === 'development' || savedEnv === 'production')) {
+      ENV.ACTIVE = savedEnv;
+    }
+
+    // Load current tone preferences
+    async function loadSettings() {
+      try {
+        const response = await fetch(apiUrl('/api/owner'), {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('casflou_session')}`
+          }
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          document.getElementById('tone-a').value = data.tone_by_risk_a || 'formal';
+          document.getElementById('tone-b').value = data.tone_by_risk_b || 'balanced';
+          document.getElementById('tone-c').value = data.tone_by_risk_c || 'cordial';
+        }
+      } catch (error) {
+        console.error('Error loading settings:', error);
+        document.getElementById('error-message').textContent = 'Error al cargar preferencias';
+        document.getElementById('error-message').style.display = 'block';
+      }
+    }
+
+    // Save tone preferences
+    document.getElementById('save-btn').addEventListener('click', async () => {
+      const token = localStorage.getItem('casflou_session');
+      const toneA = document.getElementById('tone-a').value;
+      const toneB = document.getElementById('tone-b').value;
+      const toneC = document.getElementById('tone-c').value;
+
+      try {
+        const response = await fetch(apiUrl('/api/owner'), {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tone_by_risk_a: toneA,
+            tone_by_risk_b: toneB,
+            tone_by_risk_c: toneC
+          })
+        });
+
+        if (response.ok) {
+          // Show success message
+          document.getElementById('success-message').style.display = 'block';
+          document.getElementById('error-message').style.display = 'none';
+          setTimeout(() => {
+            document.getElementById('success-message').style.display = 'none';
+          }, 3000);
+        } else {
+          throw new Error('Failed to save');
+        }
+      } catch (error) {
+        console.error('Error saving settings:', error);
+        document.getElementById('error-message').textContent = 'Error al guardar preferencias';
+        document.getElementById('error-message').style.display = 'block';
+      }
+    });
+
+    // Back button
+    document.getElementById('back-btn').addEventListener('click', () => {
+      window.location.href = '/queue.html';
+    });
+
+    // Logout
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const token = localStorage.getItem('casflou_session');
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      }).catch(() => {});
+
+      localStorage.removeItem('casflou_session');
+      localStorage.removeItem('casflou_user');
+      window.location.href = '/login.html';
+    });
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+
+    // Load settings on page load
+    loadSettings();
+
+    console.log(`🌍 Settings loaded with: ${config.name} (${config.description})`);
+  </script>
+</body>
+</html>
