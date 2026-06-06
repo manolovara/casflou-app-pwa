@@ -11,8 +11,12 @@
 <body>
   <header class="app-header">
     <h1>⚙️ Configuración</h1>
-    <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
-    <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <a href="/queue" class="icon-btn" title="Cola del día">📋</a>
+      <a href="/dashboard" class="icon-btn" title="Panel de control">📊</a>
+      <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
+      <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+    </div>
   </header>
 
   <div class="settings-container">
@@ -156,7 +160,7 @@
 
     // Back button
     document.getElementById('back-btn').addEventListener('click', () => {
-      window.location.href = '/queue.html';
+      window.location.href = '/queue';
     });
 
     // Logout
