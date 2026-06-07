@@ -133,9 +133,10 @@
           return;
         }
 
-        // Store token and redirect
+        // Store token, API URL, and redirect
         localStorage.setItem('casflou_session', data.token);
         localStorage.setItem('casflou_user', JSON.stringify(data.user));
+        localStorage.setItem('casflou_api_url', getConfig().workerUrl);
         window.location.href = '/queue';
       } catch (error) {
         errorDiv.textContent = 'Error de conexión. Intenta de nuevo.';
