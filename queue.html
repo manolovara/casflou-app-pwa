@@ -280,13 +280,35 @@
     // ─────── TONE SELECTOR LOGIC ─────────
     let currentToneDraftInvoiceId = null;
 
+    function openToneModal(invoiceId) {
+      console.log('📝 Opening tone modal for invoice:', invoiceId);
+      currentToneDraftInvoiceId = invoiceId;
+      const modal = document.getElementById('tone-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        console.log('✓ Tone modal opened');
+      } else {
+        console.error('❌ Tone modal not found');
+      }
+    }
+
+    function closeToneModal() {
+      document.getElementById('tone-modal').style.display = 'none';
+      currentToneDraftInvoiceId = null;
+    }
+
     // Intercept draft button clicks (delegated)
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('btn-draft')) {
+        console.log('📝 Draft button clicked');
         e.preventDefault();
-        const invoiceId = e.target.closest('.queue-card')?.dataset.invoiceId;
+        const card = e.target.closest('.queue-card');
+        const invoiceId = card?.dataset.invoiceId;
+        console.log('Invoice ID:', invoiceId, 'Card:', card);
         if (invoiceId) {
           openToneModal(invoiceId);
+        } else {
+          console.warn('⚠️ Could not get invoice ID from card');
         }
       }
     });
@@ -326,16 +348,6 @@
         console.error('Error loading debtor profile:', error);
         alert('Error loading profile');
       }
-    }
-
-    function openToneModal(invoiceId) {
-      currentToneDraftInvoiceId = invoiceId;
-      document.getElementById('tone-modal').style.display = 'flex';
-    }
-
-    function closeToneModal() {
-      document.getElementById('tone-modal').style.display = 'none';
-      currentToneDraftInvoiceId = null;
     }
 
     // Close tone modal handlers
@@ -406,18 +418,8 @@
 
     loadSnoozeReasons();
 
-    // Open snooze modal when snooze button clicked (delegated)
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-snooze')) {
-        e.preventDefault();
-        const invoiceId = e.target.dataset.invoiceId;
-        if (invoiceId) {
-          openSnoozeModal(invoiceId);
-        }
-      }
-    });
-
     function openSnoozeModal(invoiceId) {
+      console.log('⏸️ Opening snooze modal for invoice:', invoiceId);
       currentSnoozeInvoiceId = invoiceId;
       document.getElementById('snooze-modal').style.display = 'flex';
 
@@ -431,7 +433,28 @@
       document.getElementById('snooze-custom-reason').value = '';
       document.getElementById('snooze-reminder').value = '';
       document.getElementById('custom-reason-wrapper').style.display = 'none';
+      console.log('✓ Snooze modal opened');
     }
+
+    function closeSnoozeModal() {
+      document.getElementById('snooze-modal').style.display = 'none';
+      currentSnoozeInvoiceId = null;
+    }
+
+    // Open snooze modal when snooze button clicked (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-snooze')) {
+        console.log('⏸️ Snooze button clicked');
+        e.preventDefault();
+        const invoiceId = e.target.dataset.invoiceId;
+        console.log('Invoice ID:', invoiceId);
+        if (invoiceId) {
+          openSnoozeModal(invoiceId);
+        } else {
+          console.warn('⚠️ Could not get invoice ID from snooze button');
+        }
+      }
+    });
 
     // Quick snooze buttons (calculate date)
     document.querySelectorAll('.snooze-btn').forEach(btn => {
@@ -456,11 +479,6 @@
     // Close modal handlers
     document.getElementById('snooze-close-btn').addEventListener('click', closeSnoozeModal);
     document.getElementById('snooze-cancel-btn').addEventListener('click', closeSnoozeModal);
-
-    function closeSnoozeModal() {
-      document.getElementById('snooze-modal').style.display = 'none';
-      currentSnoozeInvoiceId = null;
-    }
 
     // Close modal when clicking outside
     document.getElementById('snooze-modal').addEventListener('click', (e) => {
@@ -513,32 +531,43 @@
     // NOTE: This is OUTSIDE the if(window.htmx) block to ensure it always works
     let currentLogInvoiceId = null;
 
-    // Open log modal when btn-log is clicked (delegated)
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-log')) {
-        e.preventDefault();
-        const invoiceId = e.target.closest('.queue-card')?.dataset.invoiceId;
-        if (invoiceId) {
-          openLogModal(invoiceId);
-        }
-      }
-    });
-
     function openLogModal(invoiceId) {
+      console.log('📋 Opening log modal for invoice:', invoiceId);
       currentLogInvoiceId = invoiceId;
-      document.getElementById('log-modal').style.display = 'flex';
-
-      // Reset form
-      document.getElementById('log-action').value = '';
-      document.getElementById('log-outcome').value = '';
-      document.getElementById('log-notes').value = '';
-      document.getElementById('promised-date-wrapper').style.display = 'none';
+      const modal = document.getElementById('log-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        // Reset form
+        document.getElementById('log-action').value = '';
+        document.getElementById('log-outcome').value = '';
+        document.getElementById('log-notes').value = '';
+        document.getElementById('promised-date-wrapper').style.display = 'none';
+        console.log('✓ Log modal opened');
+      } else {
+        console.error('❌ Log modal not found');
+      }
     }
 
     function closeLogModal() {
       document.getElementById('log-modal').style.display = 'none';
       currentLogInvoiceId = null;
     }
+
+    // Open log modal when btn-log is clicked (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-log')) {
+        console.log('📋 Registrar button clicked');
+        e.preventDefault();
+        const card = e.target.closest('.queue-card');
+        const invoiceId = card?.dataset.invoiceId;
+        console.log('Invoice ID:', invoiceId, 'Card:', card);
+        if (invoiceId) {
+          openLogModal(invoiceId);
+        } else {
+          console.warn('⚠️ Could not get invoice ID from card');
+        }
+      }
+    });
 
     // Close log modal handlers
     document.getElementById('log-close-btn')?.addEventListener('click', closeLogModal);
