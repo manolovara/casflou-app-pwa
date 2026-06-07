@@ -169,9 +169,13 @@
   <script src="/js/auth.js"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
   <script>
-    // Auth guard
-    if (!localStorage.getItem('casflou_session')) {
-      window.location.href = '/login.html';
+    // Auth guard - check session first
+    function checkAuth() {
+      if (!localStorage.getItem('casflou_session')) {
+        window.location.href = '/login';
+        return false;
+      }
+      return true;
     }
 
     // Load saved environment preference
@@ -182,10 +186,20 @@
 
     // Display current environment
     const config = getConfig();
-    document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
+    const envBadge = document.getElementById('env-badge');
+    if (envBadge) {
+      envBadge.textContent = `🌍 ${config.name}`;
+    }
 
-    // Configure HTMX before using it
+    // Check auth before proceeding
+    if (!checkAuth()) {
+      // Exit if not authenticated
+      throw new Error('Unauthorized');
+    }
+
+    // Configure HTMX if available
     if (window.htmx) {
+      console.log('✓ HTMX loaded');
       htmx.config.defaultIndicatorStyle = 'spinner';
       htmx.config.refreshOnHistoryMiss = true;
 
@@ -217,278 +231,296 @@
           }
         }
       });
-
-      // Set up queue URL - use fetch endpoint instead of htmx path
-      const queueUrl = apiUrl('/api/queue');
-      console.log('Queue URL:', queueUrl);
-
-      // Replace hx-get with custom fetch on load
-      const queueContainer = document.getElementById('queue-container');
-      queueContainer.removeAttribute('hx-get');
-
-      // Load queue data immediately
-      async function loadQueue() {
-        try {
-          const token = localStorage.getItem('casflou_session');
-          const response = await fetch(queueUrl, {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (response.ok) {
-            const html = await response.text();
-            queueContainer.innerHTML = html;
-            updateTotal();
-          }
-        } catch (error) {
-          console.error('Queue load error:', error);
-          queueContainer.innerHTML = '<div style="padding: 1rem; color: red;">Error loading queue</div>';
-        }
-      }
-
-      // Initial load
-      loadQueue();
-
-      // Reload every 30 seconds
-      setInterval(loadQueue, 30000);
-
-      // Snooze modal logic
-      let currentSnoozeInvoiceId = null;
-
-      // ─────── TONE SELECTOR LOGIC ─────────
-      let currentToneDraftInvoiceId = null;
-
-      // Intercept draft button clicks (delegated)
-      document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-draft')) {
-          e.preventDefault();
-          const invoiceId = e.target.closest('.queue-card').dataset.invoiceId;
-          openToneModal(invoiceId);
-        }
-      });
-
-      // ─────── DEBTOR PROFILE LOGIC ─────────
-      // Intercept debtor profile button clicks (delegated)
-      document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-debtor')) {
-          e.preventDefault();
-          const debtorId = e.target.dataset.debtorId;
-          openDebtorProfile(debtorId);
-        }
-      });
-
-      async function openDebtorProfile(debtorId) {
-        if (!debtorId) return;
-
-        try {
-          const token = localStorage.getItem('casflou_session');
-          const response = await fetch(apiUrl(`/api/client/${debtorId}`), {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (response.ok) {
-            const html = await response.text();
-            // Find the first queue card and insert the profile into its card-draft area
-            const card = document.querySelector('[data-debtor-id]');
-            if (card) {
-              const profileContainer = document.createElement('div');
-              profileContainer.style.marginTop = '1rem';
-              profileContainer.innerHTML = html;
-              card.closest('.queue-card')?.insertAdjacentElement('afterend', profileContainer);
-            }
-          }
-        } catch (error) {
-          console.error('Error loading debtor profile:', error);
-          alert('Error loading profile');
-        }
-      }
-
-      function openToneModal(invoiceId) {
-        currentToneDraftInvoiceId = invoiceId;
-        document.getElementById('tone-modal').style.display = 'flex';
-      }
-
-      function closeToneModal() {
-        document.getElementById('tone-modal').style.display = 'none';
-        currentToneDraftInvoiceId = null;
-      }
-
-      // Close tone modal handlers
-      document.getElementById('tone-close-btn')?.addEventListener('click', closeToneModal);
-
-      // Close tone modal when clicking outside
-      document.getElementById('tone-modal')?.addEventListener('click', (e) => {
-        if (e.target.id === 'tone-modal') {
-          closeToneModal();
-        }
-      });
-
-      // Tone button handlers
-      document.querySelectorAll('.tone-btn').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          const tone = e.currentTarget.dataset.tone;
-          const invoiceId = currentToneDraftInvoiceId;
-
-          if (!invoiceId) return;
-
-          // Load draft with selected tone
-          const draftUrl = apiUrl(`/api/draft?invoice_id=${invoiceId}&tone=${tone}`);
-          try {
-            const token = localStorage.getItem('casflou_session');
-            const response = await fetch(draftUrl, {
-              headers: { 'Authorization': `Bearer ${token}` }
-            });
-            if (response.ok) {
-              const html = await response.text();
-              const card = document.querySelector(`[data-invoice-id='${invoiceId}']`);
-              if (card) {
-                const draftContainer = card.querySelector('.card-draft');
-                draftContainer.innerHTML = html;
-                draftContainer.style.display = 'block';
-              }
-            }
-          } catch (error) {
-            console.error('Error loading draft:', error);
-          }
-
-          closeToneModal();
-        });
-      });
-
-      // Load snooze reasons when page loads
-      async function loadSnoozeReasons() {
-        try {
-          const token = localStorage.getItem('casflou_session');
-          const reasonsResp = await fetch(apiUrl('/api/snooze-reasons'), {
-            headers: { 'Authorization': `Bearer ${token}` }
-          });
-          if (reasonsResp.ok) {
-            const data = await reasonsResp.json();
-            const select = document.getElementById('snooze-reason');
-            select.innerHTML = '<option value="">Selecciona un motivo...</option>';
-            data.default_reasons.forEach(r => {
-              select.innerHTML += `<option value="${r}">${r}</option>`;
-            });
-            data.custom_reasons.forEach(r => {
-              select.innerHTML += `<option value="${r}">${r}</option>`;
-            });
-            select.innerHTML += '<option value="custom">➕ Añadir nuevo motivo...</option>';
-          }
-        } catch (error) {
-          console.error('Error loading snooze reasons:', error);
-        }
-      }
-
-      loadSnoozeReasons();
-
-      // Open snooze modal when snooze button clicked (delegated)
-      document.addEventListener('click', (e) => {
-        if (e.target.classList.contains('btn-snooze')) {
-          const invoiceId = e.target.dataset.invoiceId;
-          openSnoozeModal(invoiceId);
-        }
-      });
-
-      function openSnoozeModal(invoiceId) {
-        currentSnoozeInvoiceId = invoiceId;
-        document.getElementById('snooze-modal').style.display = 'flex';
-
-        // Set default date to 7 days from now
-        const tomorrow = new Date();
-        tomorrow.setDate(tomorrow.getDate() + 7);
-        document.getElementById('snooze-date').value = tomorrow.toISOString().split('T')[0];
-
-        // Clear form fields
-        document.getElementById('snooze-reason').value = '';
-        document.getElementById('snooze-custom-reason').value = '';
-        document.getElementById('snooze-reminder').value = '';
-        document.getElementById('custom-reason-wrapper').style.display = 'none';
-      }
-
-      // Quick snooze buttons (calculate date)
-      document.querySelectorAll('.snooze-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          const days = parseInt(e.target.dataset.days);
-          const futureDate = new Date();
-          futureDate.setDate(futureDate.getDate() + days);
-          document.getElementById('snooze-date').value = futureDate.toISOString().split('T')[0];
-        });
-      });
-
-      // Custom reason toggle
-      document.getElementById('snooze-reason').addEventListener('change', (e) => {
-        if (e.target.value === 'custom') {
-          document.getElementById('custom-reason-wrapper').style.display = 'block';
-          document.getElementById('snooze-custom-reason').focus();
-        } else {
-          document.getElementById('custom-reason-wrapper').style.display = 'none';
-        }
-      });
-
-      // Close modal handlers
-      document.getElementById('snooze-close-btn').addEventListener('click', closeSnoozeModal);
-      document.getElementById('snooze-cancel-btn').addEventListener('click', closeSnoozeModal);
-
-      function closeSnoozeModal() {
-        document.getElementById('snooze-modal').style.display = 'none';
-        currentSnoozeInvoiceId = null;
-      }
-
-      // Close modal when clicking outside
-      document.getElementById('snooze-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'snooze-modal') {
-          closeSnoozeModal();
-        }
-      });
-
-      // Confirm snooze
-      document.getElementById('snooze-confirm-btn').addEventListener('click', async () => {
-        const reason = document.getElementById('snooze-reason').value;
-        const customReason = document.getElementById('snooze-custom-reason').value;
-        const finalReason = reason === 'custom' ? customReason : reason;
-        const reminderText = document.getElementById('snooze-reminder').value;
-        const snoozedUntil = document.getElementById('snooze-date').value;
-
-        if (!finalReason || !snoozedUntil) {
-          alert('Por favor completa fecha y motivo');
-          return;
-        }
-
-        try {
-          const token = localStorage.getItem('casflou_session');
-          const response = await fetch(apiUrl(`/api/invoices/${currentSnoozeInvoiceId}/snooze`), {
-            method: 'PUT',
-            headers: {
-              'Authorization': `Bearer ${token}`,
-              'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-              snoozed_until: snoozedUntil,
-              reason: finalReason,
-              reminder_text: reminderText || null
-            })
-          });
-
-          if (response.ok) {
-            closeSnoozeModal();
-            await loadQueue(); // Reload queue to remove snoozed invoice
-          } else {
-            alert('Error al posponer la factura');
-          }
-        } catch (error) {
-          console.error('Error snoozing invoice:', error);
-          alert('Error de conexión');
-        }
-      });
     } else {
-      console.error('htmx not loaded');
+      console.warn('⚠️ HTMX not loaded');
     }
 
+    // ═════════════════════════════════════════════════════════════════
+    // QUEUE LOADING (works with or without HTMX)
+    // ═════════════════════════════════════════════════════════════════
+    const queueUrl = apiUrl('/api/queue');
+    console.log('📨 Queue URL:', queueUrl);
+
+    const queueContainer = document.getElementById('queue-container');
+
+    async function loadQueue() {
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const response = await fetch(queueUrl, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const html = await response.text();
+          queueContainer.innerHTML = html;
+          updateTotal();
+          console.log('✓ Queue loaded');
+        } else {
+          console.error('Queue load failed:', response.status);
+          queueContainer.innerHTML = '<div style="padding: 1rem; color: red;">Error loading queue</div>';
+        }
+      } catch (error) {
+        console.error('Queue load error:', error);
+        queueContainer.innerHTML = '<div style="padding: 1rem; color: red;">Error loading queue: ' + error.message + '</div>';
+      }
+    }
+
+    // Initial load
+    loadQueue();
+
+    // Reload every 30 seconds
+    setInterval(loadQueue, 30000);
+
+    // ═════════════════════════════════════════════════════════════════
+    // BUTTON EVENT LISTENERS (Always active, regardless of HTMX)
+    // ═════════════════════════════════════════════════════════════════
+
+    // Snooze modal logic
+    let currentSnoozeInvoiceId = null;
+
+    // ─────── TONE SELECTOR LOGIC ─────────
+    let currentToneDraftInvoiceId = null;
+
+    // Intercept draft button clicks (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-draft')) {
+        e.preventDefault();
+        const invoiceId = e.target.closest('.queue-card')?.dataset.invoiceId;
+        if (invoiceId) {
+          openToneModal(invoiceId);
+        }
+      }
+    });
+
+    // ─────── DEBTOR PROFILE LOGIC ─────────
+    // Intercept debtor profile button clicks (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-debtor')) {
+        e.preventDefault();
+        const debtorId = e.target.dataset.debtorId;
+        if (debtorId) {
+          openDebtorProfile(debtorId);
+        }
+      }
+    });
+
+    async function openDebtorProfile(debtorId) {
+      if (!debtorId) return;
+
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const response = await fetch(apiUrl(`/api/client/${debtorId}`), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (response.ok) {
+          const html = await response.text();
+          // Find the first queue card and insert the profile into its card-draft area
+          const card = document.querySelector('[data-debtor-id]');
+          if (card) {
+            const profileContainer = document.createElement('div');
+            profileContainer.style.marginTop = '1rem';
+            profileContainer.innerHTML = html;
+            card.closest('.queue-card')?.insertAdjacentElement('afterend', profileContainer);
+          }
+        }
+      } catch (error) {
+        console.error('Error loading debtor profile:', error);
+        alert('Error loading profile');
+      }
+    }
+
+    function openToneModal(invoiceId) {
+      currentToneDraftInvoiceId = invoiceId;
+      document.getElementById('tone-modal').style.display = 'flex';
+    }
+
+    function closeToneModal() {
+      document.getElementById('tone-modal').style.display = 'none';
+      currentToneDraftInvoiceId = null;
+    }
+
+    // Close tone modal handlers
+    document.getElementById('tone-close-btn')?.addEventListener('click', closeToneModal);
+
+    // Close tone modal when clicking outside
+    document.getElementById('tone-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'tone-modal') {
+        closeToneModal();
+      }
+    });
+
+    // Tone button handlers
+    document.querySelectorAll('.tone-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const tone = e.currentTarget.dataset.tone;
+        const invoiceId = currentToneDraftInvoiceId;
+
+        if (!invoiceId) return;
+
+        // Load draft with selected tone
+        const draftUrl = apiUrl(`/api/draft?invoice_id=${invoiceId}&tone=${tone}`);
+        try {
+          const token = localStorage.getItem('casflou_session');
+          const response = await fetch(draftUrl, {
+            headers: { 'Authorization': `Bearer ${token}` }
+          });
+          if (response.ok) {
+            const html = await response.text();
+            const card = document.querySelector(`[data-invoice-id='${invoiceId}']`);
+            if (card) {
+              const draftContainer = card.querySelector('.card-draft');
+              draftContainer.innerHTML = html;
+              draftContainer.style.display = 'block';
+            }
+          }
+        } catch (error) {
+          console.error('Error loading draft:', error);
+        }
+
+        closeToneModal();
+      });
+    });
+
+    // Load snooze reasons when page loads
+    async function loadSnoozeReasons() {
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const reasonsResp = await fetch(apiUrl('/api/snooze-reasons'), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (reasonsResp.ok) {
+          const data = await reasonsResp.json();
+          const select = document.getElementById('snooze-reason');
+          select.innerHTML = '<option value="">Selecciona un motivo...</option>';
+          data.default_reasons.forEach(r => {
+            select.innerHTML += `<option value="${r}">${r}</option>`;
+          });
+          data.custom_reasons.forEach(r => {
+            select.innerHTML += `<option value="${r}">${r}</option>`;
+          });
+          select.innerHTML += '<option value="custom">➕ Añadir nuevo motivo...</option>';
+        }
+      } catch (error) {
+        console.error('Error loading snooze reasons:', error);
+      }
+    }
+
+    loadSnoozeReasons();
+
+    // Open snooze modal when snooze button clicked (delegated)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('btn-snooze')) {
+        e.preventDefault();
+        const invoiceId = e.target.dataset.invoiceId;
+        if (invoiceId) {
+          openSnoozeModal(invoiceId);
+        }
+      }
+    });
+
+    function openSnoozeModal(invoiceId) {
+      currentSnoozeInvoiceId = invoiceId;
+      document.getElementById('snooze-modal').style.display = 'flex';
+
+      // Set default date to 7 days from now
+      const tomorrow = new Date();
+      tomorrow.setDate(tomorrow.getDate() + 7);
+      document.getElementById('snooze-date').value = tomorrow.toISOString().split('T')[0];
+
+      // Clear form fields
+      document.getElementById('snooze-reason').value = '';
+      document.getElementById('snooze-custom-reason').value = '';
+      document.getElementById('snooze-reminder').value = '';
+      document.getElementById('custom-reason-wrapper').style.display = 'none';
+    }
+
+    // Quick snooze buttons (calculate date)
+    document.querySelectorAll('.snooze-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const days = parseInt(e.target.dataset.days);
+        const futureDate = new Date();
+        futureDate.setDate(futureDate.getDate() + days);
+        document.getElementById('snooze-date').value = futureDate.toISOString().split('T')[0];
+      });
+    });
+
+    // Custom reason toggle
+    document.getElementById('snooze-reason').addEventListener('change', (e) => {
+      if (e.target.value === 'custom') {
+        document.getElementById('custom-reason-wrapper').style.display = 'block';
+        document.getElementById('snooze-custom-reason').focus();
+      } else {
+        document.getElementById('custom-reason-wrapper').style.display = 'none';
+      }
+    });
+
+    // Close modal handlers
+    document.getElementById('snooze-close-btn').addEventListener('click', closeSnoozeModal);
+    document.getElementById('snooze-cancel-btn').addEventListener('click', closeSnoozeModal);
+
+    function closeSnoozeModal() {
+      document.getElementById('snooze-modal').style.display = 'none';
+      currentSnoozeInvoiceId = null;
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('snooze-modal').addEventListener('click', (e) => {
+      if (e.target.id === 'snooze-modal') {
+        closeSnoozeModal();
+      }
+    });
+
+    // Confirm snooze
+    document.getElementById('snooze-confirm-btn').addEventListener('click', async () => {
+      const reason = document.getElementById('snooze-reason').value;
+      const customReason = document.getElementById('snooze-custom-reason').value;
+      const finalReason = reason === 'custom' ? customReason : reason;
+      const reminderText = document.getElementById('snooze-reminder').value;
+      const snoozedUntil = document.getElementById('snooze-date').value;
+
+      if (!finalReason || !snoozedUntil) {
+        alert('Por favor completa fecha y motivo');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const response = await fetch(apiUrl(`/api/invoices/${currentSnoozeInvoiceId}/snooze`), {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            snoozed_until: snoozedUntil,
+            reason: finalReason,
+            reminder_text: reminderText || null
+          })
+        });
+
+        if (response.ok) {
+          closeSnoozeModal();
+          await loadQueue(); // Reload queue to remove snoozed invoice
+        } else {
+          alert('Error al posponer la factura');
+        }
+      } catch (error) {
+        console.error('Error snoozing invoice:', error);
+        alert('Error de conexión');
+      }
+    });
+
     // ─────── LOG ACTION MODAL LOGIC ─────────
+    // NOTE: This is OUTSIDE the if(window.htmx) block to ensure it always works
     let currentLogInvoiceId = null;
 
     // Open log modal when btn-log is clicked (delegated)
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('btn-log')) {
-        const invoiceId = e.target.closest('.queue-card').dataset.invoiceId;
-        openLogModal(invoiceId);
+        e.preventDefault();
+        const invoiceId = e.target.closest('.queue-card')?.dataset.invoiceId;
+        if (invoiceId) {
+          openLogModal(invoiceId);
+        }
       }
     });
 
@@ -611,7 +643,8 @@
 
       localStorage.removeItem('casflou_session');
       localStorage.removeItem('casflou_user');
-      window.location.href = '/login.html';
+      localStorage.removeItem('casflou_api_url');
+      window.location.href = '/login';
     });
 
     // Register service worker
