@@ -13,8 +13,8 @@
     <h1>Cola del Día</h1>
     <span class="total-outstanding" id="total">€0</span>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
-      <a href="/dashboard" class="icon-btn" title="Panel de control">📊</a>
-      <a href="/settings" class="icon-btn" title="Configuración">⚙️</a>
+      <a href="/dashboard.html" class="icon-btn" title="Panel de control">📊</a>
+      <a href="/settings.html" class="icon-btn" title="Configuración">⚙️</a>
       <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
       <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
     </div>
@@ -172,7 +172,7 @@
     // Auth guard - check session first
     function checkAuth() {
       if (!localStorage.getItem('casflou_session')) {
-        window.location.href = '/login';
+        window.location.href = '/login.html';
         return false;
       }
       return true;
@@ -673,7 +673,7 @@
       localStorage.removeItem('casflou_session');
       localStorage.removeItem('casflou_user');
       localStorage.removeItem('casflou_api_url');
-      window.location.href = '/login';
+      window.location.href = '/login.html';
     });
 
     // Register service worker

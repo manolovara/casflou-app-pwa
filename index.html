@@ -40,20 +40,14 @@
   </div>
 
   <script>
-    // Prevent redirect loops - check current location
-    const currentPath = window.location.pathname;
+    console.log('index.html: Checking auth state');
 
-    // If already on a specific page, don't redirect
-    if (currentPath !== '/' && currentPath !== '/index.html') {
-      console.log('Already on page:', currentPath);
-    } else {
-      // Only redirect from root
-      const hasToken = localStorage.getItem('casflou_session');
-      const target = hasToken ? '/queue' : '/login';
+    // Simple redirect based on auth
+    const hasToken = localStorage.getItem('casflou_session');
+    const target = hasToken ? '/queue.html' : '/login.html';
 
-      console.log('Redirecting from / to', target);
-      window.location.replace(target);
-    }
+    console.log('index.html: Redirecting to', target);
+    window.location.replace(target);
   </script>
 </body>
 </html>

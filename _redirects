@@ -1,15 +1,8 @@
-# Clean URL routing for CasFlou PWA
-# Use 200 status for internal rewrites (not redirects)
+# Minimal redirects - only handle SPA routing
+# Don't use clean URLs until routing is stable
 
-/index.html              /index.html                200
-/queue                   /queue.html                200
-/login                   /login.html                200
-/dashboard               /dashboard.html            200
-/settings                /settings.html             200
+# Redirect root to index
+/               /index.html          200
 
-# Serve HTML files as-is
-/*.html                  /:splat.html               200
-
-# Catch assets (no redirect needed)
-/css/*                   /css/:splat                200
-/js/*                    /js/:splat                 200
+# Serve everything else as-is
+/*              /:splat              200
