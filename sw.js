@@ -53,65 +53,83 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch event - cache first for static, network first for API
+// Fetch event - simple cache-first strategy
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
 
-  // Skip non-GET requests and external URLs
-  if (request.method !== 'GET' || url.origin !== self.location.origin) {
+  // Skip non-GET requests
+  if (request.method !== 'GET') {
+    return;
+  }
+
+  // Skip external requests
+  if (url.origin !== self.location.origin) {
     return;
   }
 
   // API requests: network first
   if (url.pathname.startsWith('/api/')) {
     event.respondWith(
-      fetch(request, { redirect: 'follow' })
-        .then((response) => {
-          // Only cache successful, non-redirect responses
-          if (response.ok && response.status < 300) {
-            const clone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, clone);
+      fetch(request).then((response) => {
+        // Cache successful responses
+        if (response && response.ok) {
+          const clone = response.clone();
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone).catch((err) => {
+              console.warn('Cache put failed:', err);
             });
-          }
-          return response;
-        })
-        .catch(() => {
-          // Return cached version if offline
-          return caches.match(request);
-        })
+          });
+        }
+        return response;
+      }).catch(async (err) => {
+        console.warn('API fetch failed:', url.pathname, err);
+        // Try cached version
+        const cached = await caches.match(request).catch(() => null);
+        if (cached) return cached;
+
+        // Return error response
+        throw err;
+      })
     );
     return;
   }
 
-  // Static assets and pages: cache first, fallback to network
+  // Static assets and pages: cache first, network fallback
   event.respondWith(
-    caches.match(request)
-      .then((cachedResponse) => {
-        if (cachedResponse) {
-          return cachedResponse;
+    caches.match(request).then(async (cached) => {
+      if (cached) {
+        return cached;
+      }
+
+      try {
+        const response = await fetch(request);
+
+        if (!response || !response.ok) {
+          return response;
         }
 
-        // Not in cache, fetch from network
-        return fetch(request, { redirect: 'follow' })
-          .then((response) => {
-            // Cache successful responses
-            if (response && response.ok && response.status < 300) {
-              const clone = response.clone();
-              caches.open(CACHE_NAME).then((cache) => {
-                cache.put(request, clone);
-              });
-            }
-            return response;
-          })
-          .catch((error) => {
-            // Offline fallback for navigation
-            if (request.mode === 'navigate') {
-              return caches.match('/login.html');
-            }
-            return new Response('Offline', { status: 503 });
+        // Cache successful responses
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(request, clone).catch((err) => {
+            console.warn('Cache put failed:', err);
           });
-      })
+        });
+
+        return response;
+      } catch (err) {
+        console.warn('Fetch failed:', request.url, err);
+
+        // Navigation requests: fallback to login
+        if (request.mode === 'navigate') {
+          const login = await caches.match('/login.html').catch(() => null);
+          if (login) return login;
+        }
+
+        // For API errors, let it fail
+        throw err;
+      }
+    })
   );
 });
