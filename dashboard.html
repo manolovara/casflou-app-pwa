@@ -7,6 +7,144 @@
   <link rel="stylesheet" href="/css/main.css">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0066cc">
+  <style>
+    .dashboard-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .briefing-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      margin-bottom: 1.5rem;
+    }
+
+    .briefing-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid #f0f0f0;
+    }
+
+    .briefing-header h2 {
+      margin: 0;
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .briefing-status {
+      font-size: 1.5rem;
+    }
+
+    .briefing-metrics {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .metric-box {
+      padding: 1rem;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border-left: 4px solid #0066cc;
+      text-align: center;
+    }
+
+    .metric-label {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .metric-value {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: #0066cc;
+      margin-bottom: 0.3rem;
+    }
+
+    .metric-subtext {
+      font-size: 0.75rem;
+      color: #999;
+    }
+
+    .forecast-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      margin-bottom: 1.5rem;
+    }
+
+    .forecast-card h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1rem;
+      font-weight: 700;
+    }
+
+    .forecast-weeks {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 1rem;
+    }
+
+    .forecast-week {
+      padding: 1rem;
+      background: #f9f9f9;
+      border-radius: 6px;
+      border: 1px solid #e0e0e0;
+      text-align: center;
+    }
+
+    .forecast-week.critical {
+      background: #ffebee;
+      border-color: #ef5350;
+    }
+
+    .forecast-week.warning {
+      background: #fff3e0;
+      border-color: #ffa726;
+    }
+
+    .week-label {
+      font-size: 0.75rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .week-amount {
+      font-size: 1.3rem;
+      font-weight: 700;
+      color: #0066cc;
+      margin-bottom: 0.3rem;
+    }
+
+    .week-count {
+      font-size: 0.8rem;
+      color: #999;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: #999;
+    }
+
+    .error {
+      background: #ffebee;
+      color: #c62828;
+      padding: 1.5rem;
+      border-radius: 8px;
+      border: 1px solid #ef5350;
+    }
+  </style>
 </head>
 <body>
   <header class="app-header">
@@ -19,9 +157,10 @@
     </div>
   </header>
 
-  <div id="dashboard-container">
-    <div class="skeleton-card" style="height: 200px;"></div>
-    <div class="skeleton-card" style="height: 300px; margin-top: 1rem;"></div>
+  <div class="dashboard-content">
+    <div id="dashboard-container">
+      <div class="loading">Cargando panel...</div>
+    </div>
   </div>
 
   <script src="/js/config.js"></script>
@@ -36,28 +175,91 @@
     const config = getConfig();
     document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
 
-    // Load dashboard
+    // Load and render dashboard
     async function loadDashboard() {
       try {
         const token = localStorage.getItem('casflou_session');
         const response = await fetch(apiUrl('/api/dashboard'), {
           headers: { 'Authorization': `Bearer ${token}` }
         });
-        if (response.ok) {
-          const html = await response.text();
-          const container = document.getElementById('dashboard-container');
-          container.innerHTML = html;
-        } else {
-          throw new Error('Failed to load');
+
+        if (!response.ok) {
+          throw new Error(`API error: ${response.status}`);
         }
-      } catch (error) {
-        console.error('Dashboard load error:', error);
+
+        const data = await response.json();
         const container = document.getElementById('dashboard-container');
-        container.innerHTML = '<div style="padding: 2rem; color: red; text-align: center;">Error cargando dashboard</div>';
+
+        // Render briefing card
+        const briefingHTML = `
+          <div class="briefing-card">
+            <div class="briefing-header">
+              <h2>Hoy, ${new Date().toLocaleDateString('es-ES', { weekday: 'long', month: 'short', day: 'numeric' })}</h2>
+              <span class="briefing-status">${data.cash_briefing.trend_direction === 'up' ? '📈' : data.cash_briefing.trend_direction === 'down' ? '📉' : '➡️'}</span>
+            </div>
+            <div class="briefing-metrics">
+              <div class="metric-box">
+                <div class="metric-label">Pendiente cobrar</div>
+                <div class="metric-value">€${(data.cash_briefing.total_outstanding / 1000).toFixed(1)}K</div>
+                <div class="metric-subtext">${data.cash_briefing.urgent.count + data.cash_briefing.high.count + data.cash_briefing.normal.count} facturas</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Urgentes ⚠️</div>
+                <div class="metric-value" style="color: #d32f2f;">€${(data.cash_briefing.urgent.amount / 1000).toFixed(1)}K</div>
+                <div class="metric-subtext">${data.cash_briefing.urgent.count} facturas</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Altas 🔴</div>
+                <div class="metric-value" style="color: #f57c00;">€${(data.cash_briefing.high.amount / 1000).toFixed(1)}K</div>
+                <div class="metric-subtext">${data.cash_briefing.high.count} facturas</div>
+              </div>
+              <div class="metric-box">
+                <div class="metric-label">Normales ✅</div>
+                <div class="metric-value" style="color: #388e3c;">€${(data.cash_briefing.normal.amount / 1000).toFixed(1)}K</div>
+                <div class="metric-subtext">${data.cash_briefing.normal.count} facturas</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        // Render forecast card
+        const forecastHTML = `
+          <div class="forecast-card">
+            <h3>📅 Proyección de Cobros (4 semanas)</h3>
+            <div class="forecast-weeks">
+              <div class="forecast-week">
+                <div class="week-label">Semana 1</div>
+                <div class="week-amount">€${(data.forecast.week_1.amount / 1000).toFixed(1)}K</div>
+                <div class="week-count">${data.forecast.week_1.count} facturas</div>
+              </div>
+              <div class="forecast-week">
+                <div class="week-label">Semana 2</div>
+                <div class="week-amount">€${(data.forecast.week_2.amount / 1000).toFixed(1)}K</div>
+                <div class="week-count">${data.forecast.week_2.count} facturas</div>
+              </div>
+              <div class="forecast-week">
+                <div class="week-label">Semana 3</div>
+                <div class="week-amount">€${(data.forecast.week_3.amount / 1000).toFixed(1)}K</div>
+                <div class="week-count">${data.forecast.week_3.count} facturas</div>
+              </div>
+              <div class="forecast-week">
+                <div class="week-label">Semana 4</div>
+                <div class="week-amount">€${(data.forecast.week_4.amount / 1000).toFixed(1)}K</div>
+                <div class="week-count">${data.forecast.week_4.count} facturas</div>
+              </div>
+            </div>
+          </div>
+        `;
+
+        container.innerHTML = briefingHTML + forecastHTML;
+      } catch (error) {
+        console.error('Dashboard error:', error);
+        const container = document.getElementById('dashboard-container');
+        container.innerHTML = `<div class="error">❌ Error cargando dashboard: ${error.message}</div>`;
       }
     }
 
-    // Initial load
+    // Load dashboard
     loadDashboard();
 
     // Reload every 60 seconds
@@ -81,7 +283,7 @@
       navigator.serviceWorker.register('/sw.js').catch(() => {});
     }
 
-    console.log(`🌍 Dashboard loaded with: ${config.name} (${config.description})`);
+    console.log(`🌍 Dashboard loaded with: ${config.name}`);
   </script>
 </body>
 </html>
