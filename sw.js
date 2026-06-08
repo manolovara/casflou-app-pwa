@@ -1,12 +1,16 @@
 // Service Worker for CasFlou PWA
 // Provides offline support and caching
 
-const CACHE_NAME = 'casflou-v2';
+const CACHE_NAME = 'casflou-v3';
 const STATIC_ASSETS = [
   '/',
+  '/index.html',
   '/login.html',
   '/queue.html',
+  '/dashboard.html',
+  '/settings.html',
   '/css/main.css',
+  '/js/config.js',
   '/js/auth.js',
   '/manifest.json'
 ];
@@ -49,6 +53,19 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Resolve clean URLs to actual HTML files
+function resolveUrl(pathname) {
+  // Map clean URLs to actual files
+  const routeMap = {
+    '/': '/index.html',
+    '/queue': '/queue.html',
+    '/login': '/login.html',
+    '/dashboard': '/dashboard.html',
+    '/settings': '/settings.html'
+  };
+  return routeMap[pathname] || pathname;
+}
+
 // Fetch event - cache first for static, network first for API
 self.addEventListener('fetch', (event) => {
   const { request } = event;
@@ -81,18 +98,47 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  // Page navigation requests: resolve clean URLs
+  if (request.mode === 'navigate') {
+    const resolvedPath = resolveUrl(url.pathname);
+    const resolvedUrl = new URL(resolvedPath, url.origin).toString();
+    const resolvedRequest = new Request(resolvedUrl, request);
+
+    event.respondWith(
+      caches.match(resolvedRequest).then((response) => {
+        if (response) {
+          return response;
+        }
+
+        return fetch(resolvedRequest, { redirect: 'follow' })
+          .then((response) => {
+            if (response && response.ok) {
+              const clone = response.clone();
+              caches.open(CACHE_NAME).then((cache) => {
+                cache.put(resolvedRequest, clone);
+              });
+            }
+            return response;
+          })
+          .catch(() => {
+            // Return login page on offline
+            return caches.match('/login.html');
+          });
+      })
+    );
+    return;
+  }
+
   // Static assets: cache first
   event.respondWith(
     caches.match(request).then((response) => {
-      // Skip cached redirects, always fetch fresh
-      if (response && response.status < 300) {
+      if (response) {
         return response;
       }
 
       return fetch(request, { redirect: 'follow' })
         .then((response) => {
-          // Only cache successful, non-redirect responses
-          if (response.ok && response.status < 300) {
+          if (response && response.ok && response.status < 300) {
             const clone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
               cache.put(request, clone);
@@ -101,10 +147,8 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Return login page on offline navigation
-          if (request.mode === 'navigate') {
-            return caches.match('/login.html');
-          }
+          // Return a blank response if offline for non-critical assets
+          return new Response('', { status: 408 });
         });
     })
   );

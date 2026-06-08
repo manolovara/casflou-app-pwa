@@ -69,6 +69,19 @@
   <script src="/js/config.js"></script>
   <script src="/js/auth.js"></script>
   <script>
+    // Clear old caches on page load for debugging
+    if ('caches' in window) {
+      caches.keys().then(cacheNames => {
+        cacheNames.forEach(cacheName => {
+          if (cacheName.startsWith('casflou-') && cacheName !== 'casflou-v3') {
+            console.log('Clearing old cache:', cacheName);
+            caches.delete(cacheName);
+          }
+        });
+      });
+    }
+  </script>
+  <script>
     // Display current environment
     function updateEnvDisplay() {
       const config = getConfig();
