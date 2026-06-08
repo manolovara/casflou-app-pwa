@@ -697,7 +697,7 @@
       });
       const totalEl = document.getElementById('total');
       if (totalEl) {
-        totalEl.textContent = '€' + total.toLocaleString('es-ES', {minimumFractionDigits: 0});
+        totalEl.textContent = '€' + total.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
       }
     }
 
