@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou - Detalles del Cliente</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0066cc">
+  <style>
+    .detail-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .detail-header {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      border: 1px solid #e0e0e0;
+    }
+
+    .detail-header h2 {
+      margin: 0 0 1rem 0;
+      font-size: 1.5rem;
+    }
+
+    .detail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .detail-item {
+      padding: 1rem;
+      background: #f9f9f9;
+      border-radius: 6px;
+    }
+
+    .detail-label {
+      font-size: 0.8rem;
+      color: #666;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+
+    .detail-value {
+      font-size: 1.2rem;
+      font-weight: 600;
+      color: #333;
+    }
+
+    .section {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      border: 1px solid #e0e0e0;
+    }
+
+    .section h3 {
+      margin: 0 0 1rem 0;
+      font-size: 1.1rem;
+      border-bottom: 2px solid #f0f0f0;
+      padding-bottom: 0.5rem;
+    }
+
+    .phone-form {
+      display: flex;
+      gap: 1rem;
+      align-items: flex-end;
+      margin-bottom: 1rem;
+    }
+
+    .form-group {
+      flex: 1;
+    }
+
+    .form-group label {
+      display: block;
+      font-size: 0.9rem;
+      margin-bottom: 0.3rem;
+      font-weight: 600;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 1rem;
+    }
+
+    .form-group button {
+      padding: 0.5rem 1rem;
+      background: #0066cc;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+
+    .form-group button:hover {
+      background: #0052a3;
+    }
+
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .table th {
+      background: #f5f5f5;
+      padding: 0.8rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.85rem;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .table td {
+      padding: 0.8rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .table tbody tr:hover {
+      background: #f9f9f9;
+    }
+
+    .status-badge {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .status-active {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+
+    .status-paid {
+      background: #e8f5e9;
+      color: #1b5e20;
+    }
+
+    .empty {
+      padding: 2rem;
+      text-align: center;
+      color: #999;
+    }
+
+    .back-btn {
+      margin-bottom: 1rem;
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: #f0f0f0;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      cursor: pointer;
+      text-decoration: none;
+      color: #333;
+    }
+
+    .back-btn:hover {
+      background: #e0e0e0;
+    }
+
+    .message {
+      padding: 1rem;
+      border-radius: 4px;
+      margin-bottom: 1rem;
+    }
+
+    .message.success {
+      background: #c8e6c9;
+      color: #2e7d32;
+      border: 1px solid #a5d6a7;
+    }
+
+    .message.error {
+      background: #ffcdd2;
+      color: #c62828;
+      border: 1px solid #ef9a9a;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>👤 Detalles del Cliente</h1>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <a href="/debtors.html" class="icon-btn" title="Volver a Clientes">👥</a>
+      <a href="/queue.html" class="icon-btn" title="Cola del día">📋</a>
+      <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
+      <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+    </div>
+  </header>
+
+  <div class="detail-container">
+    <a href="/debtors.html" class="back-btn">← Volver a Clientes</a>
+
+    <div id="message-container"></div>
+
+    <div id="detail-content">
+      <div style="padding: 2rem; text-align: center; color: #999;">Cargando...</div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Auth guard
+    if (!localStorage.getItem('casflou_session')) {
+      window.location.href = '/login.html';
+    }
+
+    const config = getConfig();
+    document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
+
+    // Get debtor ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const debtorId = params.get('id');
+
+    if (!debtorId) {
+      document.getElementById('detail-content').innerHTML = '<div style="color: red; padding: 2rem;">Debtor ID no válido</div>';
+    }
+
+    async function loadDebtor() {
+      try {
+        const token = localStorage.getItem('casflou_session');
+
+        // Load debtor info
+        const debtorResp = await fetch(apiUrl(`/api/debtors/${debtorId}`), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!debtorResp.ok) throw new Error('Failed to load debtor');
+        const debtor = await debtorResp.json();
+
+        // Load invoices and actions
+        const dataResp = await fetch(apiUrl(`/api/debtors/${debtorId}/invoices`), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!dataResp.ok) throw new Error('Failed to load data');
+        const data = await dataResp.json();
+
+        const container = document.getElementById('detail-content');
+        const invoicesHtml = (data.invoices || []).length === 0
+          ? '<div class="empty">Sin facturas</div>'
+          : `
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Número</th>
+                  <th>Monto</th>
+                  <th>Vencimiento</th>
+                  <th>Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(data.invoices || []).map(i => `
+                  <tr>
+                    <td>${i.invoice_number}</td>
+                    <td>€${i.amount.toFixed(2)}</td>
+                    <td>${new Date(i.due_date).toLocaleDateString('es-ES')}</td>
+                    <td><span class="status-badge ${i.status === 'ACTIVE' ? 'status-active' : 'status-paid'}">${i.status}</span></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+
+        const actionsHtml = (data.actions || []).length === 0
+          ? '<div class="empty">Sin acciones registradas</div>'
+          : `
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Resultado</th>
+                  <th>Fecha</th>
+                  <th>Notas</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${(data.actions || []).map(a => `
+                  <tr>
+                    <td>${a.action_type}</td>
+                    <td>${a.outcome || '-'}</td>
+                    <td>${new Date(a.logged_at).toLocaleDateString('es-ES')}</td>
+                    <td>${a.notes || '-'}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          `;
+
+        const html = `
+          <div class="detail-header">
+            <h2>${debtor.name}</h2>
+            <div class="detail-grid">
+              <div class="detail-item">
+                <div class="detail-label">Sector</div>
+                <div class="detail-value">${debtor.sector || '-'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Riesgo</div>
+                <div class="detail-value">${debtor.risk_score || '-'}</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">Salud</div>
+                <div class="detail-value">${Math.round(debtor.health_score || 0)}/100</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">% Promesas Cumplidas</div>
+                <div class="detail-value">${Math.round((debtor.promise_kept_rate || 0) * 100)}%</div>
+              </div>
+              <div class="detail-item">
+                <div class="detail-label">DSO Promedio</div>
+                <div class="detail-value">${Math.round(debtor.avg_dso_days || 0)} días</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>📱 Contacto</h3>
+            <div class="phone-form">
+              <div class="form-group" style="flex: 1;">
+                <label>WhatsApp / Teléfono</label>
+                <input type="text" id="phone-input" value="${debtor.whatsapp || ''}" placeholder="+34 912 345 678">
+              </div>
+              <div class="form-group">
+                <button onclick="updatePhone()">Actualizar</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="section">
+            <h3>📋 Facturas (${data.invoices?.length || 0})</h3>
+            ${invoicesHtml}
+          </div>
+
+          <div class="section">
+            <h3>📝 Acciones Registradas (${data.actions?.length || 0})</h3>
+            ${actionsHtml}
+          </div>
+        `;
+
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('detail-content').innerHTML = '<div style="color: red; padding: 2rem;">Error cargando datos</div>';
+      }
+    }
+
+    async function updatePhone() {
+      const phone = document.getElementById('phone-input').value;
+      if (!phone) {
+        showMessage('Por favor ingresa un teléfono', 'error');
+        return;
+      }
+
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const response = await fetch(apiUrl(`/api/debtors/${debtorId}/phone`), {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ whatsapp: phone })
+        });
+
+        if (!response.ok) throw new Error('Failed to update');
+
+        showMessage('✓ Teléfono actualizado', 'success');
+      } catch (error) {
+        console.error('Error:', error);
+        showMessage('Error actualizando teléfono', 'error');
+      }
+    }
+
+    function showMessage(text, type) {
+      const container = document.getElementById('message-container');
+      container.innerHTML = `<div class="message ${type}">${text}</div>`;
+      setTimeout(() => {
+        container.innerHTML = '';
+      }, 3000);
+    }
+
+    loadDebtor();
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const token = localStorage.getItem('casflou_session');
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {});
+
+      localStorage.removeItem('casflou_session');
+      localStorage.removeItem('casflou_user');
+      window.location.href = '/login.html';
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

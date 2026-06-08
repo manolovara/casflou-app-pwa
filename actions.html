@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou - Acciones Registradas</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0066cc">
+  <style>
+    .actions-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .actions-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .actions-table th {
+      background: #f5f5f5;
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #333;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .actions-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .actions-table tbody tr:hover {
+      background: #f9f9f9;
+    }
+
+    .action-type {
+      font-weight: 600;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      display: inline-block;
+    }
+
+    .action-call {
+      background: #bbdefb;
+      color: #1565c0;
+    }
+
+    .action-email {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+
+    .action-whatsapp {
+      background: #a5d6a7;
+      color: #1b5e20;
+    }
+
+    .action-sms {
+      background: #ffe0b2;
+      color: #e65100;
+    }
+
+    .action-visit {
+      background: #f8bbd0;
+      color: #880e4f;
+    }
+
+    .outcome {
+      font-weight: 500;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.85rem;
+      display: inline-block;
+    }
+
+    .outcome-positive {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+
+    .outcome-negative {
+      background: #ffcdd2;
+      color: #c62828;
+    }
+
+    .outcome-neutral {
+      background: #e0e0e0;
+      color: #616161;
+    }
+
+    .date-cell {
+      font-size: 0.9rem;
+      color: #666;
+    }
+
+    .empty-state {
+      padding: 3rem;
+      text-align: center;
+      color: #999;
+    }
+
+    .loading {
+      padding: 2rem;
+      text-align: center;
+      color: #999;
+    }
+
+    .filters {
+      margin-bottom: 1.5rem;
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .filter-input {
+      padding: 0.5rem;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 0.9rem;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: #0066cc;
+      box-shadow: 0 0 0 2px rgba(0,102,204,0.1);
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>📝 Acciones Registradas</h1>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <a href="/queue.html" class="icon-btn" title="Cola del día">📋</a>
+      <a href="/dashboard.html" class="icon-btn" title="Panel de control">📊</a>
+      <a href="/debtors.html" class="icon-btn" title="Clientes">👥</a>
+      <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
+      <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+    </div>
+  </header>
+
+  <div class="actions-container">
+    <div class="filters">
+      <input type="text" id="search-input" class="filter-input" placeholder="Buscar cliente o factura..." style="flex: 1;">
+    </div>
+
+    <div id="actions-content">
+      <div class="loading">Cargando acciones...</div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Auth guard
+    if (!localStorage.getItem('casflou_session')) {
+      window.location.href = '/login.html';
+    }
+
+    const config = getConfig();
+    document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
+
+    let allActions = [];
+
+    async function loadActions() {
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const response = await fetch(apiUrl('/api/actions?limit=200'), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to load');
+
+        allActions = await response.json();
+        renderActions(allActions);
+      } catch (error) {
+        console.error('Actions error:', error);
+        document.getElementById('actions-content').innerHTML = '<div style="color: red; padding: 1rem;">Error cargando acciones</div>';
+      }
+    }
+
+    function getActionClass(type) {
+      const map = {
+        'CALL': 'action-call',
+        'EMAIL': 'action-email',
+        'WHATSAPP': 'action-whatsapp',
+        'SMS': 'action-sms',
+        'VISIT': 'action-visit'
+      };
+      return map[type] || 'action-neutral';
+    }
+
+    function getOutcomeClass(outcome) {
+      if (!outcome) return 'outcome-neutral';
+      if (outcome.includes('PROMISE') || outcome.includes('RECEIVED') || outcome.includes('PAYMENT')) {
+        return 'outcome-positive';
+      }
+      if (outcome.includes('NO_RESPONSE') || outcome.includes('BROKEN')) {
+        return 'outcome-negative';
+      }
+      return 'outcome-neutral';
+    }
+
+    function renderActions(actions) {
+      const container = document.getElementById('actions-content');
+
+      if (!actions || actions.length === 0) {
+        container.innerHTML = '<div class="empty-state">No hay acciones registradas</div>';
+        return;
+      }
+
+      const html = `
+        <table class="actions-table">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Factura</th>
+              <th>Tipo</th>
+              <th>Resultado</th>
+              <th>Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${actions.map(a => `
+              <tr>
+                <td class="date-cell">${new Date(a.logged_at).toLocaleDateString('es-ES')} ${new Date(a.logged_at).toLocaleTimeString('es-ES', {hour: '2-digit', minute:'2-digit'})}</td>
+                <td><strong>${a.debtor_name}</strong></td>
+                <td>${a.invoice_number}</td>
+                <td><span class="action-type ${getActionClass(a.action_type)}">${a.action_type}</span></td>
+                <td><span class="outcome ${getOutcomeClass(a.outcome)}">${a.outcome || '-'}</span></td>
+                <td>€${a.amount.toFixed(2)}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      `;
+
+      container.innerHTML = html;
+    }
+
+    function handleSearch(query) {
+      if (!query) {
+        renderActions(allActions);
+        return;
+      }
+
+      const filtered = allActions.filter(a =>
+        a.debtor_name.toLowerCase().includes(query.toLowerCase()) ||
+        a.invoice_number.toLowerCase().includes(query.toLowerCase())
+      );
+
+      renderActions(filtered);
+    }
+
+    document.getElementById('search-input').addEventListener('input', (e) => {
+      handleSearch(e.target.value);
+    });
+
+    loadActions();
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const token = localStorage.getItem('casflou_session');
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {});
+
+      localStorage.removeItem('casflou_session');
+      localStorage.removeItem('casflou_user');
+      window.location.href = '/login.html';
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

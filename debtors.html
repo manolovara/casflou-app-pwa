@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou - Clientes</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0066cc">
+  <style>
+    .debtors-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 1rem;
+    }
+
+    .debtors-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    .debtors-table th {
+      background: #f5f5f5;
+      padding: 1rem;
+      text-align: left;
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: #333;
+      border-bottom: 2px solid #e0e0e0;
+    }
+
+    .debtors-table td {
+      padding: 1rem;
+      border-bottom: 1px solid #e0e0e0;
+    }
+
+    .debtors-table tbody tr:hover {
+      background: #f9f9f9;
+      cursor: pointer;
+    }
+
+    .debtor-name {
+      font-weight: 600;
+      color: #0066cc;
+    }
+
+    .risk-badge {
+      display: inline-block;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+    }
+
+    .risk-a {
+      background: #c8e6c9;
+      color: #2e7d32;
+    }
+
+    .risk-b {
+      background: #fff9c4;
+      color: #f57f17;
+    }
+
+    .risk-c {
+      background: #ffccbc;
+      color: #d84315;
+    }
+
+    .health-score {
+      font-weight: 600;
+    }
+
+    .health-good {
+      color: #388e3c;
+    }
+
+    .health-warning {
+      color: #f57c00;
+    }
+
+    .health-critical {
+      color: #d32f2f;
+    }
+
+    .empty-state {
+      padding: 3rem;
+      text-align: center;
+      color: #999;
+    }
+
+    .loading {
+      padding: 2rem;
+      text-align: center;
+      color: #999;
+    }
+  </style>
+</head>
+<body>
+  <header class="app-header">
+    <h1>👥 Clientes</h1>
+    <div style="display: flex; gap: 0.5rem; align-items: center;">
+      <a href="/queue.html" class="icon-btn" title="Cola del día">📋</a>
+      <a href="/dashboard.html" class="icon-btn" title="Panel de control">📊</a>
+      <a href="/settings.html" class="icon-btn" title="Configuración">⚙️</a>
+      <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
+      <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
+    </div>
+  </header>
+
+  <div class="debtors-container">
+    <div id="debtors-content">
+      <div class="loading">Cargando clientes...</div>
+    </div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Auth guard
+    if (!localStorage.getItem('casflou_session')) {
+      window.location.href = '/login.html';
+    }
+
+    const config = getConfig();
+    document.getElementById('env-badge').textContent = `🌍 ${config.name}`;
+
+    async function loadDebtors() {
+      try {
+        const token = localStorage.getItem('casflou_session');
+        const response = await fetch(apiUrl('/api/debtors'), {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+
+        if (!response.ok) throw new Error('Failed to load');
+
+        const debtors = await response.json();
+        const container = document.getElementById('debtors-content');
+
+        if (!debtors || debtors.length === 0) {
+          container.innerHTML = '<div class="empty-state">No hay clientes registrados</div>';
+          return;
+        }
+
+        const html = `
+          <table class="debtors-table">
+            <thead>
+              <tr>
+                <th>Nombre</th>
+                <th>Sector</th>
+                <th>Riesgo</th>
+                <th>Salud</th>
+                <th>% Promesas</th>
+                <th>DSO Promedio</th>
+                <th>Tendencia</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${debtors.map(d => {
+                const healthClass = d.health_score >= 70 ? 'health-good' : d.health_score >= 40 ? 'health-warning' : 'health-critical';
+                const trend = d.dso_trend > 0.1 ? '📈' : d.dso_trend < -0.1 ? '📉' : '➡️';
+
+                return `
+                  <tr onclick="window.location.href='/debtor-detail.html?id=${d.id}'">
+                    <td class="debtor-name">${d.name}</td>
+                    <td>${d.sector || '-'}</td>
+                    <td><span class="risk-badge risk-${d.risk_score?.toLowerCase() || 'b'}">${d.risk_score || 'B'}</span></td>
+                    <td><span class="health-score ${healthClass}">${Math.round(d.health_score || 0)}</span></td>
+                    <td>${Math.round((d.promise_kept_rate || 0) * 100)}%</td>
+                    <td>${Math.round(d.avg_dso_days || 0)}d</td>
+                    <td>${trend}</td>
+                  </tr>
+                `;
+              }).join('')}
+            </tbody>
+          </table>
+        `;
+
+        container.innerHTML = html;
+      } catch (error) {
+        console.error('Debtors error:', error);
+        document.getElementById('debtors-content').innerHTML = '<div style="color: red; padding: 1rem;">Error cargando clientes</div>';
+      }
+    }
+
+    loadDebtors();
+
+    document.getElementById('logout-btn').addEventListener('click', async () => {
+      const token = localStorage.getItem('casflou_session');
+      await fetch(apiUrl('/api/auth/logout'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).catch(() => {});
+
+      localStorage.removeItem('casflou_session');
+      localStorage.removeItem('casflou_user');
+      window.location.href = '/login.html';
+    });
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
