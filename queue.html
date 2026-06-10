@@ -300,33 +300,43 @@
       currentToneDraftInvoiceId = null;
     }
 
-    // Intercept draft button clicks (delegated)
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-draft')) {
-        console.log('📝 Draft button clicked');
-        e.preventDefault();
-        const card = e.target.closest('.queue-card');
-        const invoiceId = card?.dataset.invoiceId;
-        console.log('Invoice ID:', invoiceId, 'Card:', card);
-        if (invoiceId) {
-          openToneModal(invoiceId);
-        } else {
-          console.warn('⚠️ Could not get invoice ID from card');
-        }
+    // Intercept draft/mensaje button clicks (delegated) - Mobile friendly
+    function handleDraftClick(e) {
+      const button = e.target.closest('.btn-draft, .btn-mensaje');
+      if (!button) return;
+
+      console.log('📝 Mensaje button clicked');
+      const card = button.closest('.queue-card');
+      const invoiceId = card?.dataset?.invoiceId;
+
+      if (invoiceId) {
+        openToneModal(invoiceId);
+      } else {
+        console.error('⚠️ Could not get invoice ID');
+        alert('Error: No se pudo identificar la factura');
       }
-    });
+    }
+
+    document.addEventListener('click', handleDraftClick, true);
+    document.addEventListener('touchend', handleDraftClick, true);
 
     // ─────── DEBTOR PROFILE LOGIC ─────────
-    // Intercept debtor profile button clicks (delegated)
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-debtor')) {
-        e.preventDefault();
-        const debtorId = e.target.dataset.debtorId;
-        if (debtorId) {
-          openDebtorProfile(debtorId);
-        }
+    // Intercept debtor profile button clicks (delegated) - Mobile friendly
+    function handleDebtorClick(e) {
+      const button = e.target.closest('.btn-debtor');
+      if (!button) return;
+
+      const debtorId = button.dataset.debtorId;
+      if (debtorId) {
+        openDebtorProfile(debtorId);
+      } else {
+        console.error('⚠️ Could not get debtor ID');
+        alert('Error: No se pudo cargar el perfil');
       }
-    });
+    }
+
+    document.addEventListener('click', handleDebtorClick, true);
+    document.addEventListener('touchend', handleDebtorClick, true);
 
     async function openDebtorProfile(debtorId) {
       if (!debtorId) return;
@@ -610,20 +620,24 @@
       currentSnoozeInvoiceId = null;
     }
 
-    // Open snooze modal when snooze button clicked (delegated)
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-snooze')) {
-        console.log('⏸️ Snooze button clicked');
-        e.preventDefault();
-        const invoiceId = e.target.dataset.invoiceId;
-        console.log('Invoice ID:', invoiceId);
-        if (invoiceId) {
-          openSnoozeModal(invoiceId);
-        } else {
-          console.warn('⚠️ Could not get invoice ID from snooze button');
-        }
+    // Open snooze modal when snooze button clicked (delegated) - Mobile friendly
+    function handleSnoozeClick(e) {
+      const button = e.target.closest('.btn-snooze');
+      if (!button) return;
+
+      console.log('⏸️ Snooze button clicked');
+      const invoiceId = button.dataset.invoiceId;
+
+      if (invoiceId) {
+        openSnoozeModal(invoiceId);
+      } else {
+        console.error('⚠️ Could not get invoice ID');
+        alert('Error: No se pudo identificar la factura');
       }
-    });
+    }
+
+    document.addEventListener('click', handleSnoozeClick, true);
+    document.addEventListener('touchend', handleSnoozeClick, true);
 
     // Quick snooze buttons (calculate date)
     document.querySelectorAll('.snooze-btn').forEach(btn => {
@@ -722,21 +736,25 @@
       currentLogInvoiceId = null;
     }
 
-    // Open log modal when btn-log is clicked (delegated)
-    document.addEventListener('click', (e) => {
-      if (e.target.classList.contains('btn-log')) {
-        console.log('📋 Registrar button clicked');
-        e.preventDefault();
-        const card = e.target.closest('.queue-card');
-        const invoiceId = card?.dataset.invoiceId;
-        console.log('Invoice ID:', invoiceId, 'Card:', card);
-        if (invoiceId) {
-          openLogModal(invoiceId);
-        } else {
-          console.warn('⚠️ Could not get invoice ID from card');
-        }
+    // Open log modal when btn-log is clicked (delegated) - Mobile friendly
+    function handleLogClick(e) {
+      const button = e.target.closest('.btn-log');
+      if (!button) return;
+
+      console.log('📝 Registrar acción button clicked');
+      const card = button.closest('.queue-card');
+      const invoiceId = card?.dataset?.invoiceId;
+
+      if (invoiceId) {
+        openLogModal(invoiceId);
+      } else {
+        console.error('⚠️ Could not get invoice ID');
+        alert('Error: No se pudo identificar la factura');
       }
-    });
+    }
+
+    document.addEventListener('click', handleLogClick, true);
+    document.addEventListener('touchend', handleLogClick, true);
 
     // Close log modal handlers
     document.getElementById('log-close-btn')?.addEventListener('click', closeLogModal);
