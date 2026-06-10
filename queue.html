@@ -395,6 +395,28 @@
       });
     });
 
+    // ─────── CARD MENU TOGGLE ─────────
+    document.addEventListener('click', (e) => {
+      // Toggle card menu
+      if (e.target.classList.contains('btn-card-menu')) {
+        e.preventDefault();
+        const card = e.target.closest('.queue-card');
+        const menu = card.querySelector('.card-menu');
+        const isVisible = menu.style.display !== 'none';
+
+        // Close all other menus
+        document.querySelectorAll('.card-menu').forEach(m => m.style.display = 'none');
+
+        // Toggle this menu
+        menu.style.display = isVisible ? 'none' : 'block';
+      }
+
+      // Close menu when clicking outside
+      if (!e.target.closest('.queue-card')) {
+        document.querySelectorAll('.card-menu').forEach(m => m.style.display = 'none');
+      }
+    });
+
     // ─────── DRAFT FORM EVENT LISTENERS ─────────
     document.addEventListener('click', (e) => {
       // Send via WhatsApp button
