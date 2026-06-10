@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CasFlou - Seleccionar Tono</title>
+  <link rel="stylesheet" href="/css/main.css">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#0066cc">
+</head>
+<body>
+  <header class="app-header">
+    <h1>💬 Seleccionar Tono del Mensaje</h1>
+    <a href="/queue.html" class="icon-btn" title="Volver">←</a>
+  </header>
+
+  <div id="message-container" style="max-width: 500px; margin: 2rem auto; padding: 1rem;">
+    <div class="loading">Cargando opciones de tono...</div>
+  </div>
+
+  <script src="/js/config.js"></script>
+  <script src="/js/auth.js"></script>
+  <script>
+    // Auth guard
+    if (!localStorage.getItem('casflou_session')) {
+      window.location.href = '/login.html';
+    }
+
+    // Get invoice ID from URL
+    const params = new URLSearchParams(window.location.search);
+    const invoiceId = params.get('invoice_id');
+
+    if (!invoiceId) {
+      document.getElementById('message-container').innerHTML = '<div style="color: red; padding: 2rem;">Error: No se especificó la factura</div>';
+    } else {
+      // Tone options
+      const tones = [
+        { value: 'formal', label: '⚖️ Formal', desc: 'Serio y urgente' },
+        { value: 'balanced', label: '📋 Equilibrado', desc: 'Profesional y claro' },
+        { value: 'cordial', label: '😊 Cordial', desc: 'Amable y colaborativo' }
+      ];
+
+      const html = `
+        <div style="background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+          <p style="color: #666; margin-bottom: 1.5rem;">Selecciona el tono para el mensaje de cobro:</p>
+
+          <div style="display: flex; flex-direction: column; gap: 1rem;">
+            ${tones.map(tone => `
+              <a href="${apiUrl(`/api/draft?invoice_id=${invoiceId}&tone=${tone.value}`)}"
+                 target="_blank"
+                 style="padding: 1rem; background: #f5f5f5; border: 2px solid #ddd; border-radius: 6px; text-decoration: none; color: #333; transition: all 0.2s; cursor: pointer; display: block;">
+                <strong>${tone.label}</strong>
+                <div style="font-size: 0.85rem; color: #666; margin-top: 0.25rem;">${tone.desc}</div>
+              </a>
+            `).join('')}
+          </div>
+
+          <div style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid #eee;">
+            <a href="/queue.html" style="padding: 0.75rem; background: #f5f5f5; border: 1px solid #ddd; border-radius: 6px; text-decoration: none; color: #333; display: block; text-align: center; cursor: pointer;">
+              ← Volver a la Cola
+            </a>
+          </div>
+        </div>
+      `;
+
+      document.getElementById('message-container').innerHTML = html;
+    }
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>

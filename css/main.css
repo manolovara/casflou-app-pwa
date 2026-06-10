@@ -231,32 +231,32 @@ button:not([class]):active {
 
 .queue-card {
   border: none;
-  border-radius: 12px;
+  border-radius: 0;
   padding: 1rem;
   background: #fff;
   position: relative;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-  transition: box-shadow 0.2s ease, transform 0.2s ease;
-  border-top: 3px solid;
+  box-shadow: none;
+  transition: background 0.2s ease;
+  border-bottom: 1px solid #e8e8e8;
 }
 
 .queue-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-  transform: translateY(-1px);
+  background: #fafafa;
+}
+
+.queue-card:last-child {
+  border-bottom: none;
 }
 
 .queue-card.urgent {
-  border-top-color: #d32f2f;
   background: #fff;
 }
 
 .queue-card.high {
-  border-top-color: #f57c00;
   background: #fff;
 }
 
 .queue-card.normal {
-  border-top-color: #388e3c;
   background: #fff;
 }
 
@@ -391,6 +391,10 @@ button:not([class]):active {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .card-actions .btn-primary {
