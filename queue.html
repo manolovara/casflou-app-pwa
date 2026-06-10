@@ -697,7 +697,10 @@
       });
       const totalEl = document.getElementById('total');
       if (totalEl) {
-        totalEl.textContent = '€' + total.toLocaleString('es-ES', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+        // Format: "7.200,00 €" (thousands separator: comma, decimal separator: period)
+        const formatted = (Math.round(total * 100) / 100)
+          .toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        totalEl.textContent = formatted + ' €';
       }
     }
 

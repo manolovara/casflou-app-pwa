@@ -161,6 +161,12 @@
   <script src="/js/config.js"></script>
   <script src="/js/auth.js"></script>
   <script>
+    // Helper function to format currency
+    function formatCurrency(amount) {
+      return (Math.round(amount * 100) / 100)
+        .toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' €';
+    }
+
     // Auth guard
     if (!localStorage.getItem('casflou_session')) {
       window.location.href = '/login.html';
@@ -238,7 +244,7 @@
                 <td>${a.invoice_number}</td>
                 <td><span class="action-type ${getActionClass(a.action_type)}">${a.action_type}</span></td>
                 <td><span class="outcome ${getOutcomeClass(a.outcome)}">${a.outcome || '-'}</span></td>
-                <td>€${a.amount.toFixed(2)}</td>
+                <td>${formatCurrency(a.amount)}</td>
               </tr>
             `).join('')}
           </tbody>
