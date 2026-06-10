@@ -395,6 +395,150 @@
       });
     });
 
+    // ─────── DRAFT FORM EVENT LISTENERS ─────────
+    document.addEventListener('click', (e) => {
+      // Send via WhatsApp button
+      if (e.target.classList.contains('btn-send-whatsapp')) {
+        e.preventDefault();
+        const form = e.target.closest('.draft-form');
+        const invoiceId = form.dataset.invoiceId;
+        const whatsappNumber = form.dataset.whatsapp;
+        const message = form.querySelector('.draft-textarea').value;
+        const tone = form.querySelector('.tone-select').value;
+
+        if (!whatsappNumber) {
+          alert('⚠️ Número de WhatsApp no disponible para este cliente');
+          return;
+        }
+
+        e.target.disabled = true;
+        e.target.textContent = '📤 Abriendo WhatsApp...';
+
+        const token = localStorage.getItem('casflou_session');
+        const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                          (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+        // Submit draft to record it was prepared
+        fetch(apiBaseUrl + '/api/draft/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            invoice_id: invoiceId,
+            message: message,
+            tone: tone
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            // Open WhatsApp with message
+            const encoded = encodeURIComponent(message);
+            const waUrl = 'https://wa.me/' + whatsappNumber + '?text=' + encoded;
+            window.open(waUrl, '_blank');
+            form.remove();
+          } else {
+            alert('Error: ' + (data.error || 'No se pudo preparar el draft'));
+            e.target.disabled = false;
+            e.target.textContent = '📱 Enviar por WhatsApp';
+          }
+        })
+        .catch(err => {
+          console.error('Error:', err);
+          alert('Error de conexión');
+          e.target.disabled = false;
+          e.target.textContent = '📱 Enviar por WhatsApp';
+        });
+      }
+
+      // Register only button (save draft without opening WhatsApp)
+      if (e.target.classList.contains('btn-register-only')) {
+        e.preventDefault();
+        const form = e.target.closest('.draft-form');
+        const invoiceId = form.dataset.invoiceId;
+        const message = form.querySelector('.draft-textarea').value;
+        const tone = form.querySelector('.tone-select').value;
+
+        e.target.disabled = true;
+        e.target.textContent = '📝 Registrando...';
+
+        const token = localStorage.getItem('casflou_session');
+        const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                          (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+        fetch(apiBaseUrl + '/api/draft/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            invoice_id: invoiceId,
+            message: message,
+            tone: tone
+          })
+        })
+        .then(r => r.json())
+        .then(data => {
+          if (data.ok) {
+            alert('✓ Draft registrado. Abre Registrar para completar la acción.');
+            form.remove();
+          } else {
+            alert('Error: ' + (data.error || 'No se pudo preparar el draft'));
+          }
+          e.target.disabled = false;
+          e.target.textContent = '📝 Registrar (sin enviar)';
+        })
+        .catch(err => {
+          console.error('Error:', err);
+          alert('Error de conexión');
+          e.target.disabled = false;
+          e.target.textContent = '📝 Registrar (sin enviar)';
+        });
+      }
+
+      // Cancel draft button
+      if (e.target.classList.contains('btn-cancel-draft')) {
+        e.preventDefault();
+        const form = e.target.closest('.draft-form');
+        if (form) form.remove();
+      }
+    });
+
+    // Handle tone selector change in draft form
+    document.addEventListener('change', (e) => {
+      if (e.target.classList.contains('tone-select')) {
+        const form = e.target.closest('.draft-form');
+        const invoiceId = form.dataset.invoiceId;
+        const tone = e.target.value;
+        const textarea = form.querySelector('.draft-textarea');
+
+        textarea.style.opacity = '0.6';
+
+        const token = localStorage.getItem('casflou_session');
+        const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                          (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+        fetch(apiBaseUrl + '/api/draft?invoice_id=' + invoiceId + '&tone=' + tone, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        })
+        .then(r => r.text())
+        .then(html => {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          const newMessage = tempDiv.querySelector('.draft-textarea').value;
+          textarea.value = newMessage;
+          textarea.style.opacity = '1';
+        })
+        .catch(err => {
+          console.error('Error updating tone:', err);
+          textarea.style.opacity = '1';
+        });
+      }
+    });
+
     // Load snooze reasons when page loads
     async function loadSnoozeReasons() {
       try {
