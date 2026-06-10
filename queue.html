@@ -835,13 +835,18 @@
       cards.forEach(card => {
         const amountText = card.querySelector('.card-details p:nth-child(1)');
         if (amountText) {
-          const match = amountText.textContent.match(/€([\d.]+)/);
-          if (match) total += parseFloat(match[1].replace('.', ''));
+          // Match format: "2.500,00 €" (number with period thousands separator and comma decimal)
+          const match = amountText.textContent.match(/([\d.]+,\d{2})\s€/);
+          if (match) {
+            // Convert "2.500,00" to 2500.00 by removing periods and replacing comma with period
+            const normalized = match[1].replace(/\./g, '').replace(',', '.');
+            total += parseFloat(normalized);
+          }
         }
       });
       const totalEl = document.getElementById('total');
       if (totalEl) {
-        // Format: "7.200,00 €" (thousands separator: comma, decimal separator: period)
+        // Format: "7.200,00 €" (thousands separator: period, decimal separator: comma)
         const formatted = (Math.round(total * 100) / 100)
           .toLocaleString('de-DE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         totalEl.textContent = formatted + ' €';
