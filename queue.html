@@ -168,6 +168,63 @@
     </div>
   </div>
 
+  <!-- Draft Message Modal -->
+  <div id="draft-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>💬 Preparar Mensaje</h3>
+        <button class="modal-close" id="draft-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Tone Selection (Step 1) -->
+        <div id="draft-tone-selection" style="display: block;">
+          <p style="margin-bottom: 1rem; color: #666;">Selecciona el tono para el mensaje:</p>
+          <div class="tone-options">
+            <button class="tone-btn draft-tone-btn" data-tone="cordial">
+              <div class="tone-icon">😊</div>
+              <div class="tone-name">Cordial</div>
+              <div class="tone-desc">Amable y colaborativo</div>
+            </button>
+            <button class="tone-btn draft-tone-btn" data-tone="balanced">
+              <div class="tone-icon">📋</div>
+              <div class="tone-name">Equilibrado</div>
+              <div class="tone-desc">Profesional y claro</div>
+            </button>
+            <button class="tone-btn draft-tone-btn" data-tone="formal">
+              <div class="tone-icon">⚖️</div>
+              <div class="tone-name">Formal</div>
+              <div class="tone-desc">Serio y urgente</div>
+            </button>
+          </div>
+        </div>
+
+        <!-- Draft Display (Step 2) -->
+        <div id="draft-display" style="display: none;">
+          <div style="background: #f5f5f5; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+            <p style="font-size: 0.9rem; color: #666; margin: 0 0 0.75rem 0;"><strong>Mensaje preparado:</strong></p>
+            <p id="draft-message-text" style="margin: 0; font-style: italic; line-height: 1.6; color: #333;"></p>
+          </div>
+
+          <p style="font-size: 0.85rem; color: #999; margin: 0.75rem 0 1rem 0;">
+            Tono: <strong id="draft-tone-label"></strong>
+            <button id="draft-change-tone" style="margin-left: 1rem; background: none; border: none; color: #0066cc; text-decoration: underline; cursor: pointer; padding: 0; font-size: 0.85rem;">cambiar tono</button>
+          </p>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="modal-footer" id="draft-actions" style="display: none;">
+        <a id="draft-whatsapp-link" href="" target="_blank" class="btn-primary" style="text-decoration: none; display: inline-block;">
+          📱 Enviar por WhatsApp
+        </a>
+        <a id="draft-register-link" href="" class="btn-secondary" style="text-decoration: none; display: inline-block;">
+          📝 Registrar
+        </a>
+        <button class="btn-secondary" id="draft-cancel-btn">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <script src="/js/config.js"></script>
   <script src="/js/auth.js"></script>
   <script src="https://unpkg.com/htmx.org@2.0.4/dist/htmx.min.js"></script>
@@ -300,19 +357,121 @@
       currentToneDraftInvoiceId = null;
     }
 
+    // ─────── DRAFT MESSAGE MODAL LOGIC ─────────
+    let currentDraftInvoiceId = null;
+    let currentDraftDebtorId = null;
+    let currentDraftWhatsapp = null;
+    let currentDraftMessage = null;
+
+    function openDraftModal(invoiceId, debtorId) {
+      console.log('💬 Opening draft modal for invoice:', invoiceId);
+      currentDraftInvoiceId = invoiceId;
+      currentDraftDebtorId = debtorId;
+      const modal = document.getElementById('draft-modal');
+      if (modal) {
+        modal.style.display = 'flex';
+        document.getElementById('draft-tone-selection').style.display = 'block';
+        document.getElementById('draft-display').style.display = 'none';
+        document.getElementById('draft-actions').style.display = 'none';
+      }
+    }
+
+    function closeDraftModal() {
+      const modal = document.getElementById('draft-modal');
+      if (modal) {
+        modal.style.display = 'none';
+      }
+      currentDraftInvoiceId = null;
+      currentDraftDebtorId = null;
+      currentDraftWhatsapp = null;
+      currentDraftMessage = null;
+    }
+
+    // Draft tone button listeners
+    document.querySelectorAll('.draft-tone-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const tone = e.currentTarget.dataset.tone;
+        if (!currentDraftInvoiceId) return;
+
+        console.log('Fetching draft with tone:', tone);
+        const token = localStorage.getItem('casflou_session');
+        const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                          (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+        try {
+          const response = await fetch(apiBaseUrl + '/api/draft?invoice_id=' + currentDraftInvoiceId + '&tone=' + tone, {
+            headers: { 'Authorization': 'Bearer ' + token }
+          });
+
+          if (!response.ok) throw new Error('Failed to load draft');
+
+          const html = await response.text();
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = html;
+          const draftForm = tempDiv.querySelector('.draft-form');
+
+          if (draftForm) {
+            // Extract message from the draft form - it's in a paragraph with italic style
+            const messagePara = Array.from(draftForm.querySelectorAll('p')).find(p => p.style.fontStyle === 'italic' || p.className === 'message');
+            const message = messagePara?.textContent?.trim() || 'No message generated';
+            const whatsappNumber = draftForm.dataset.whatsapp || '';
+
+            // Store for action buttons
+            currentDraftMessage = message;
+            currentDraftWhatsapp = whatsappNumber;
+
+            // Display draft
+            document.getElementById('draft-message-text').textContent = message;
+            document.getElementById('draft-tone-label').textContent = tone.charAt(0).toUpperCase() + tone.slice(1);
+
+            // Set action links
+            if (whatsappNumber) {
+              const encoded = encodeURIComponent(message);
+              document.getElementById('draft-whatsapp-link').href = 'https://wa.me/' + whatsappNumber + '?text=' + encoded;
+            }
+            document.getElementById('draft-register-link').href = '/log.html?invoice_id=' + currentDraftInvoiceId + '&debtor_id=' + currentDraftDebtorId;
+
+            // Show draft and actions
+            document.getElementById('draft-tone-selection').style.display = 'none';
+            document.getElementById('draft-display').style.display = 'block';
+            document.getElementById('draft-actions').style.display = 'flex';
+          }
+        } catch (error) {
+          console.error('Error loading draft:', error);
+          alert('Error al cargar el mensaje');
+        }
+      });
+    });
+
+    // Draft modal close handlers
+    document.getElementById('draft-close-btn')?.addEventListener('click', closeDraftModal);
+    document.getElementById('draft-cancel-btn')?.addEventListener('click', closeDraftModal);
+    document.getElementById('draft-change-tone')?.addEventListener('click', () => {
+      document.getElementById('draft-tone-selection').style.display = 'block';
+      document.getElementById('draft-display').style.display = 'none';
+      document.getElementById('draft-actions').style.display = 'none';
+    });
+
+    // Close draft modal when clicking outside
+    document.getElementById('draft-modal')?.addEventListener('click', (e) => {
+      if (e.target.id === 'draft-modal') {
+        closeDraftModal();
+      }
+    });
+
     // Intercept draft/mensaje button clicks (delegated) - Mobile friendly
     function handleDraftClick(e) {
       const button = e.target.closest('.btn-draft, .btn-mensaje');
       if (!button) return;
 
-      console.log('📝 Mensaje button clicked');
-      const card = button.closest('.queue-card');
-      const invoiceId = card?.dataset?.invoiceId;
+      console.log('💬 Mensaje button clicked');
+      const invoiceId = button.dataset.invoiceId;
+      const debtorId = button.dataset.debtorId;
 
-      if (invoiceId) {
-        openToneModal(invoiceId);
+      if (invoiceId && debtorId) {
+        openDraftModal(invoiceId, debtorId);
       } else {
-        console.error('⚠️ Could not get invoice ID');
+        console.error('⚠️ Could not get invoice ID or debtor ID');
         alert('Error: No se pudo identificar la factura');
       }
     }
