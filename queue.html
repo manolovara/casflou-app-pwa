@@ -3,22 +3,22 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>CasFlou - Cola del Día</title>
+  <title>CasFlou - Facturas pendientes de cobro</title>
   <link rel="stylesheet" href="/css/main.css">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0066cc">
 </head>
 <body>
   <header class="app-header">
-    <h1>Cola del Día</h1>
-    <span class="total-outstanding" id="total">€0</span>
+    <div style="display: flex; flex-direction: column; flex: 1;">
+      <h1>Facturas pendientes de cobro</h1>
+      <div style="font-size: 1.5rem; font-weight: 700; color: #0066cc; margin-top: 0.5rem;" id="total">€0,00</div>
+    </div>
     <div style="display: flex; gap: 0.5rem; align-items: center;">
       <a href="/dashboard.html" class="icon-btn" title="Panel de control">📊</a>
       <a href="/debtors.html" class="icon-btn" title="Clientes">👥</a>
       <a href="/invoices.html" class="icon-btn" title="Facturas">📄</a>
-      <a href="/actions.html" class="icon-btn" title="Acciones">📝</a>
-      <a href="/settings.html" class="icon-btn" title="Configuración">⚙️</a>
-      <span id="env-badge" style="font-size: 0.7rem; padding: 2px 6px; background: #eee; border-radius: 3px; color: #666;"></span>
+      <a href="/settings.html" class="icon-btn" title="Configuración" style="display: none;" id="settings-nav">⚙️</a>
       <button class="icon-btn" id="logout-btn" title="Cerrar sesión">🚪</button>
     </div>
   </header>
