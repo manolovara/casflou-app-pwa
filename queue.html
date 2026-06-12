@@ -1032,7 +1032,7 @@
       const cards = document.querySelectorAll('.queue-card');
       let total = 0;
       cards.forEach(card => {
-        const amountText = card.querySelector('.card-details p:nth-child(1)');
+        const amountText = card.querySelector('.card-amount');
         if (amountText) {
           // Match format: "2.500,00 €" (number with period thousands separator and comma decimal)
           const match = amountText.textContent.match(/([\d.]+,\d{2})\s€/);
