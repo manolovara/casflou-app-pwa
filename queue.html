@@ -200,23 +200,24 @@
 
         <!-- Draft Display (Step 2) -->
         <div id="draft-display" style="display: none;">
-          <div style="background: #f5f5f5; padding: 1rem; border-radius: 6px; margin-bottom: 1rem;">
+          <div style="margin-bottom: 1rem;">
             <p style="font-size: 0.9rem; color: #666; margin: 0 0 0.75rem 0;"><strong>Mensaje preparado:</strong></p>
-            <p id="draft-message-text" style="margin: 0; font-style: italic; line-height: 1.6; color: #333;"></p>
+            <textarea id="draft-message-text" style="width: 100%; min-height: 120px; padding: 0.75rem; border: 1px solid #ddd; border-radius: 6px; font-size: 0.95rem; line-height: 1.6; font-family: inherit;" placeholder="Mensaje..."></textarea>
           </div>
 
           <p style="font-size: 0.85rem; color: #999; margin: 0.75rem 0 1rem 0;">
             Tono: <strong id="draft-tone-label"></strong>
             <button id="draft-change-tone" style="margin-left: 1rem; background: none; border: none; color: #0066cc; text-decoration: underline; cursor: pointer; padding: 0; font-size: 0.85rem;">cambiar tono</button>
+            <button id="draft-regenerate" style="margin-left: 1rem; background: none; border: none; color: #0066cc; text-decoration: underline; cursor: pointer; padding: 0; font-size: 0.85rem;">🔄 regenerar</button>
           </p>
         </div>
       </div>
 
       <!-- Action Buttons -->
       <div class="modal-footer" id="draft-actions" style="display: none;">
-        <a id="draft-whatsapp-link" href="" target="_blank" class="btn-primary" style="text-decoration: none; display: inline-block;">
+        <button id="draft-whatsapp-btn" class="btn-primary" style="text-decoration: none; display: inline-block;">
           📱 Enviar por WhatsApp
-        </a>
+        </button>
         <a id="draft-register-link" href="" class="btn-secondary" style="text-decoration: none; display: inline-block;">
           📝 Registrar
         </a>
@@ -420,15 +421,11 @@
             currentDraftMessage = message;
             currentDraftWhatsapp = whatsappNumber;
 
-            // Display draft
-            document.getElementById('draft-message-text').textContent = message;
+            // Display draft (in editable textarea)
+            document.getElementById('draft-message-text').value = message;
             document.getElementById('draft-tone-label').textContent = tone.charAt(0).toUpperCase() + tone.slice(1);
 
-            // Set action links
-            if (whatsappNumber) {
-              const encoded = encodeURIComponent(message);
-              document.getElementById('draft-whatsapp-link').href = 'https://wa.me/' + whatsappNumber + '?text=' + encoded;
-            }
+            // Set action button handlers
             document.getElementById('draft-register-link').href = '/log.html?invoice_id=' + currentDraftInvoiceId + '&debtor_id=' + currentDraftDebtorId;
 
             // Show draft and actions
@@ -450,6 +447,102 @@
       document.getElementById('draft-tone-selection').style.display = 'block';
       document.getElementById('draft-display').style.display = 'none';
       document.getElementById('draft-actions').style.display = 'none';
+    });
+
+    // Regenerate draft button
+    document.getElementById('draft-regenerate')?.addEventListener('click', async () => {
+      const textarea = document.getElementById('draft-message-text');
+      const tone = document.getElementById('draft-tone-label').textContent.toLowerCase();
+
+      if (!currentDraftInvoiceId) return;
+
+      textarea.style.opacity = '0.6';
+      const origText = document.getElementById('draft-regenerate').textContent;
+      document.getElementById('draft-regenerate').textContent = '⏳ regenerando...';
+
+      const token = localStorage.getItem('casflou_session');
+      const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                        (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+      try {
+        const response = await fetch(apiBaseUrl + '/api/draft?invoice_id=' + currentDraftInvoiceId + '&tone=' + tone, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (!response.ok) throw new Error('Failed to regenerate draft');
+
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const draftForm = tempDiv.querySelector('.draft-form');
+
+        if (draftForm) {
+          const messagePara = Array.from(draftForm.querySelectorAll('p')).find(p => p.style.fontStyle === 'italic' || p.className === 'message');
+          const message = messagePara?.textContent?.trim() || 'No message generated';
+
+          currentDraftMessage = message;
+          textarea.value = message;
+        }
+      } catch (error) {
+        console.error('Error regenerating draft:', error);
+        alert('Error al regenerar el mensaje');
+      } finally {
+        textarea.style.opacity = '1';
+        document.getElementById('draft-regenerate').textContent = origText;
+      }
+    });
+
+    // Send WhatsApp button - uses current textarea content
+    document.getElementById('draft-whatsapp-btn')?.addEventListener('click', async () => {
+      const textarea = document.getElementById('draft-message-text');
+      const message = textarea.value.trim();
+
+      if (!message) {
+        alert('Por favor escribe un mensaje');
+        return;
+      }
+
+      if (!currentDraftWhatsapp) {
+        alert('⚠️ Número de WhatsApp no disponible para este cliente');
+        return;
+      }
+
+      const btn = document.getElementById('draft-whatsapp-btn');
+      btn.disabled = true;
+      btn.textContent = '📤 Abriendo WhatsApp...';
+
+      const token = localStorage.getItem('casflou_session');
+      const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                        (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+      try {
+        // Record draft was prepared
+        await fetch(apiBaseUrl + '/api/draft/send', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            invoice_id: currentDraftInvoiceId,
+            message: message,
+            tone: document.getElementById('draft-tone-label').textContent.toLowerCase()
+          })
+        });
+
+        // Open WhatsApp with the message
+        const encoded = encodeURIComponent(message);
+        const waUrl = 'https://wa.me/' + currentDraftWhatsapp + '?text=' + encoded;
+        window.open(waUrl, '_blank');
+
+        // Close modal after opening WhatsApp
+        closeDraftModal();
+      } catch (error) {
+        console.error('Error:', error);
+        alert('Error al enviar el mensaje');
+        btn.disabled = false;
+        btn.textContent = '📱 Enviar por WhatsApp';
+      }
     });
 
     // Close draft modal when clicking outside
