@@ -372,6 +372,7 @@
                         (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
 
       try {
+        console.log('📨 Fetching draft for invoice:', invoiceId, 'tone:', tone);
         const response = await fetch(apiBaseUrl + '/api/draft?invoice_id=' + invoiceId + '&tone=' + tone, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
@@ -381,20 +382,31 @@
         const html = await response.text();
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
+
+        // Find the draft form and extract message
         const draftForm = tempDiv.querySelector('.draft-form');
+        let message = 'No message generated';
+        let whatsappNumber = '';
 
         if (draftForm) {
+          whatsappNumber = draftForm.dataset.whatsapp || '';
           const paragraphs = Array.from(draftForm.querySelectorAll('p'));
-          const labelIdx = paragraphs.findIndex(p => p.textContent.includes('Mensaje propuesto'));
-          const message = labelIdx >= 0 && labelIdx < paragraphs.length - 1
-            ? paragraphs[labelIdx + 1]?.textContent?.trim()
-            : 'No message generated';
 
-          const whatsappNumber = draftForm.dataset.whatsapp || '';
+          // Find the paragraph after "Mensaje propuesto" label
+          for (let i = 0; i < paragraphs.length; i++) {
+            if (paragraphs[i].textContent.includes('Mensaje propuesto')) {
+              if (i + 1 < paragraphs.length) {
+                message = paragraphs[i + 1].textContent.trim();
+                break;
+              }
+            }
+          }
+
+          console.log('✓ Draft loaded:', message.substring(0, 50) + '...');
 
           currentDraftMessage = message;
           currentDraftWhatsapp = whatsappNumber;
-          currentDraftTone = tone;
+          currentDraftTone = tone.toLowerCase();
 
           document.getElementById('draft-message-text').value = message;
           document.getElementById('draft-tone-label').textContent = tone.charAt(0).toUpperCase() + tone.slice(1);
@@ -470,8 +482,12 @@
       const textarea = document.getElementById('draft-message-text');
       const tone = currentDraftTone || document.getElementById('draft-tone-label').textContent.toLowerCase();
 
-      if (!currentDraftInvoiceId) return;
+      if (!currentDraftInvoiceId || !tone) {
+        console.error('Missing invoice ID or tone');
+        return;
+      }
 
+      console.log('🔄 Regenerating draft for invoice:', currentDraftInvoiceId, 'with tone:', tone);
       textarea.style.opacity = '0.6';
       const origText = document.getElementById('draft-regenerate').textContent;
       document.getElementById('draft-regenerate').textContent = '⏳ regenerando...';
@@ -481,33 +497,53 @@
                         (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
 
       try {
-        const response = await fetch(apiBaseUrl + '/api/draft?invoice_id=' + currentDraftInvoiceId + '&tone=' + tone, {
+        const draftUrl = apiBaseUrl + '/api/draft?invoice_id=' + currentDraftInvoiceId + '&tone=' + tone;
+        console.log('Fetching from:', draftUrl);
+
+        const response = await fetch(draftUrl, {
           headers: { 'Authorization': 'Bearer ' + token }
         });
 
-        if (!response.ok) throw new Error('Failed to regenerate draft');
+        if (!response.ok) {
+          throw new Error('API returned status: ' + response.status);
+        }
 
         const html = await response.text();
+        console.log('Response received, length:', html.length);
+
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
 
-        // Find the message in the draft form
-        const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
-        const labelIdx = paragraphs.findIndex(p => p.textContent.includes('Mensaje propuesto'));
-        let message = null;
+        // Find the message - look for all p tags within draft-form or the entire response
+        const draftForm = tempDiv.querySelector('.draft-form');
+        const searchContainer = draftForm || tempDiv;
+        const paragraphs = Array.from(searchContainer.querySelectorAll('p'));
 
-        if (labelIdx >= 0 && labelIdx < paragraphs.length - 1) {
-          message = paragraphs[labelIdx + 1]?.textContent?.trim();
+        console.log('Found', paragraphs.length, 'paragraphs');
+
+        // Find the paragraph after "Mensaje propuesto"
+        let message = null;
+        for (let i = 0; i < paragraphs.length; i++) {
+          if (paragraphs[i].textContent.includes('Mensaje propuesto')) {
+            if (i + 1 < paragraphs.length) {
+              message = paragraphs[i + 1].textContent.trim();
+              console.log('Found message at index', i + 1, ':', message.substring(0, 50) + '...');
+              break;
+            }
+          }
         }
 
-        if (message) {
+        if (message && message.length > 0) {
           currentDraftMessage = message;
           textarea.value = message;
-          console.log('✓ Draft regenerated with tone:', tone);
+          console.log('✓ Draft regenerated successfully');
+        } else {
+          console.error('No message found in response');
+          alert('No se pudo regenerar el mensaje');
         }
       } catch (error) {
         console.error('Error regenerating draft:', error);
-        alert('Error al regenerar el mensaje');
+        alert('Error al regenerar: ' + error.message);
       } finally {
         textarea.style.opacity = '1';
         document.getElementById('draft-regenerate').textContent = origText;
