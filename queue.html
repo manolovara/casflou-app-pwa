@@ -497,48 +497,35 @@
                         (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
 
       try {
-        const draftUrl = apiBaseUrl + '/api/draft?invoice_id=' + currentDraftInvoiceId + '&tone=' + tone;
-        console.log('Fetching from:', draftUrl);
+        const regenerateUrl = apiBaseUrl + '/api/draft/regenerate';
+        console.log('Calling:', regenerateUrl);
 
-        const response = await fetch(draftUrl, {
-          headers: { 'Authorization': 'Bearer ' + token }
+        const response = await fetch(regenerateUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + token,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            invoice_id: currentDraftInvoiceId,
+            tone: tone
+          })
         });
 
         if (!response.ok) {
           throw new Error('API returned status: ' + response.status);
         }
 
-        const html = await response.text();
-        console.log('Response received, length:', html.length);
+        const data = await response.json();
+        console.log('Response received:', data);
 
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = html;
-
-        // Find the message - look for all p tags within draft-form or the entire response
-        const draftForm = tempDiv.querySelector('.draft-form');
-        const searchContainer = draftForm || tempDiv;
-        const paragraphs = Array.from(searchContainer.querySelectorAll('p'));
-
-        console.log('Found', paragraphs.length, 'paragraphs');
-
-        // Find the paragraph after "Mensaje propuesto"
-        let message = null;
-        for (let i = 0; i < paragraphs.length; i++) {
-          if (paragraphs[i].textContent.includes('Mensaje propuesto')) {
-            if (i + 1 < paragraphs.length) {
-              message = paragraphs[i + 1].textContent.trim();
-              console.log('Found message at index', i + 1, ':', message.substring(0, 50) + '...');
-              break;
-            }
-          }
-        }
-
-        if (message && message.length > 0) {
+        if (data.draft_message && data.draft_message.length > 0) {
+          const message = data.draft_message;
           currentDraftMessage = message;
           textarea.value = message;
-          console.log('✓ Draft regenerated successfully');
+          console.log('✓ Draft regenerated with AI:', message.substring(0, 50) + '...');
         } else {
-          console.error('No message found in response');
+          console.error('No message in response');
           alert('No se pudo regenerar el mensaje');
         }
       } catch (error) {
