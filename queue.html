@@ -474,12 +474,19 @@
         const html = await response.text();
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
-        const draftForm = tempDiv.querySelector('.draft-form');
 
-        if (draftForm) {
-          const messagePara = Array.from(draftForm.querySelectorAll('p')).find(p => p.style.fontStyle === 'italic' || p.className === 'message');
-          const message = messagePara?.textContent?.trim() || 'No message generated';
+        // Find the message in the draft form - it's in a paragraph with specific inline styles
+        // Look for the paragraph that comes after "Mensaje propuesto:" label
+        const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
+        const labelIdx = paragraphs.findIndex(p => p.textContent.includes('Mensaje propuesto'));
+        let message = 'No message generated';
 
+        if (labelIdx >= 0 && labelIdx < paragraphs.length - 1) {
+          // The message is in the next paragraph after the label
+          message = paragraphs[labelIdx + 1]?.textContent?.trim() || 'No message generated';
+        }
+
+        if (message && message !== 'No message generated') {
           currentDraftMessage = message;
           textarea.value = message;
         }
