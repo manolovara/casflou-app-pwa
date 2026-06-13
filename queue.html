@@ -363,14 +363,70 @@
     let currentDraftDebtorId = null;
     let currentDraftWhatsapp = null;
     let currentDraftMessage = null;
+    let currentDraftTone = null;
+    let defaultDraftTone = null;
+
+    async function fetchAndDisplayDraft(invoiceId, tone) {
+      const token = localStorage.getItem('casflou_session');
+      const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                        (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+      try {
+        const response = await fetch(apiBaseUrl + '/api/draft?invoice_id=' + invoiceId + '&tone=' + tone, {
+          headers: { 'Authorization': 'Bearer ' + token }
+        });
+
+        if (!response.ok) throw new Error('Failed to load draft');
+
+        const html = await response.text();
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = html;
+        const draftForm = tempDiv.querySelector('.draft-form');
+
+        if (draftForm) {
+          const paragraphs = Array.from(draftForm.querySelectorAll('p'));
+          const labelIdx = paragraphs.findIndex(p => p.textContent.includes('Mensaje propuesto'));
+          const message = labelIdx >= 0 && labelIdx < paragraphs.length - 1
+            ? paragraphs[labelIdx + 1]?.textContent?.trim()
+            : 'No message generated';
+
+          const whatsappNumber = draftForm.dataset.whatsapp || '';
+
+          currentDraftMessage = message;
+          currentDraftWhatsapp = whatsappNumber;
+          currentDraftTone = tone;
+
+          document.getElementById('draft-message-text').value = message;
+          document.getElementById('draft-tone-label').textContent = tone.charAt(0).toUpperCase() + tone.slice(1);
+          document.getElementById('draft-register-link').href = '/log.html?invoice_id=' + currentDraftInvoiceId + '&debtor_id=' + currentDraftDebtorId;
+
+          document.getElementById('draft-tone-selection').style.display = 'none';
+          document.getElementById('draft-display').style.display = 'block';
+          document.getElementById('draft-actions').style.display = 'flex';
+        }
+      } catch (error) {
+        console.error('Error loading draft:', error);
+        alert('Error al cargar el mensaje');
+      }
+    }
 
     function openDraftModal(invoiceId, debtorId) {
       console.log('💬 Opening draft modal for invoice:', invoiceId);
       currentDraftInvoiceId = invoiceId;
       currentDraftDebtorId = debtorId;
+
       const modal = document.getElementById('draft-modal');
       if (modal) {
         modal.style.display = 'flex';
+      }
+
+      const card = document.querySelector(`[data-invoice-id='${invoiceId}']`);
+      const defaultTone = card?.dataset?.defaultTone || null;
+
+      if (defaultTone) {
+        defaultDraftTone = defaultTone;
+        fetchAndDisplayDraft(invoiceId, defaultTone);
+      } else {
         document.getElementById('draft-tone-selection').style.display = 'block';
         document.getElementById('draft-display').style.display = 'none';
         document.getElementById('draft-actions').style.display = 'none';
@@ -386,6 +442,8 @@
       currentDraftDebtorId = null;
       currentDraftWhatsapp = null;
       currentDraftMessage = null;
+      currentDraftTone = null;
+      defaultDraftTone = null;
     }
 
     // Draft tone button listeners
@@ -393,50 +451,8 @@
       btn.addEventListener('click', async (e) => {
         const tone = e.currentTarget.dataset.tone;
         if (!currentDraftInvoiceId) return;
-
         console.log('Fetching draft with tone:', tone);
-        const token = localStorage.getItem('casflou_session');
-        const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
-                          (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
-
-        try {
-          const response = await fetch(apiBaseUrl + '/api/draft?invoice_id=' + currentDraftInvoiceId + '&tone=' + tone, {
-            headers: { 'Authorization': 'Bearer ' + token }
-          });
-
-          if (!response.ok) throw new Error('Failed to load draft');
-
-          const html = await response.text();
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = html;
-          const draftForm = tempDiv.querySelector('.draft-form');
-
-          if (draftForm) {
-            // Extract message from the draft form - it's in a paragraph with italic style
-            const messagePara = Array.from(draftForm.querySelectorAll('p')).find(p => p.style.fontStyle === 'italic' || p.className === 'message');
-            const message = messagePara?.textContent?.trim() || 'No message generated';
-            const whatsappNumber = draftForm.dataset.whatsapp || '';
-
-            // Store for action buttons
-            currentDraftMessage = message;
-            currentDraftWhatsapp = whatsappNumber;
-
-            // Display draft (in editable textarea)
-            document.getElementById('draft-message-text').value = message;
-            document.getElementById('draft-tone-label').textContent = tone.charAt(0).toUpperCase() + tone.slice(1);
-
-            // Set action button handlers
-            document.getElementById('draft-register-link').href = '/log.html?invoice_id=' + currentDraftInvoiceId + '&debtor_id=' + currentDraftDebtorId;
-
-            // Show draft and actions
-            document.getElementById('draft-tone-selection').style.display = 'none';
-            document.getElementById('draft-display').style.display = 'block';
-            document.getElementById('draft-actions').style.display = 'flex';
-          }
-        } catch (error) {
-          console.error('Error loading draft:', error);
-          alert('Error al cargar el mensaje');
-        }
+        await fetchAndDisplayDraft(currentDraftInvoiceId, tone);
       });
     });
 
@@ -452,7 +468,7 @@
     // Regenerate draft button
     document.getElementById('draft-regenerate')?.addEventListener('click', async () => {
       const textarea = document.getElementById('draft-message-text');
-      const tone = document.getElementById('draft-tone-label').textContent.toLowerCase();
+      const tone = currentDraftTone || document.getElementById('draft-tone-label').textContent.toLowerCase();
 
       if (!currentDraftInvoiceId) return;
 
@@ -475,20 +491,19 @@
         const tempDiv = document.createElement('div');
         tempDiv.innerHTML = html;
 
-        // Find the message in the draft form - it's in a paragraph with specific inline styles
-        // Look for the paragraph that comes after "Mensaje propuesto:" label
+        // Find the message in the draft form
         const paragraphs = Array.from(tempDiv.querySelectorAll('p'));
         const labelIdx = paragraphs.findIndex(p => p.textContent.includes('Mensaje propuesto'));
-        let message = 'No message generated';
+        let message = null;
 
         if (labelIdx >= 0 && labelIdx < paragraphs.length - 1) {
-          // The message is in the next paragraph after the label
-          message = paragraphs[labelIdx + 1]?.textContent?.trim() || 'No message generated';
+          message = paragraphs[labelIdx + 1]?.textContent?.trim();
         }
 
-        if (message && message !== 'No message generated') {
+        if (message) {
           currentDraftMessage = message;
           textarea.value = message;
+          console.log('✓ Draft regenerated with tone:', tone);
         }
       } catch (error) {
         console.error('Error regenerating draft:', error);
