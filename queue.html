@@ -7,6 +7,18 @@
   <link rel="stylesheet" href="/css/main.css">
   <link rel="manifest" href="/manifest.json">
   <meta name="theme-color" content="#0066cc">
+  <style>
+    @keyframes slideDown {
+      from {
+        transform: translateY(-100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+  </style>
 </head>
 <body>
   <header class="app-header">
@@ -537,6 +549,105 @@
       }
     });
 
+    // ─────── 1-TAP WHATSAPP AUTO-LOG USING PAGE VISIBILITY API ─────────
+    let pendingWaLog = null;
+    let waLogTimeout = null;
+
+    // Show confirmation banner after returning from WhatsApp
+    function showWaConfirmationBanner() {
+      if (!pendingWaLog) return;
+
+      const banner = document.createElement('div');
+      banner.id = 'wa-confirmation-banner';
+      banner.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        background: #4CAF50;
+        color: white;
+        padding: 1rem;
+        text-align: center;
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 1rem;
+        font-weight: 600;
+        animation: slideDown 0.3s ease-out;
+      `;
+      banner.innerHTML = `
+        <span>✅ ¿Enviaste el WhatsApp a ${pendingWaLog.debtorName}?</span>
+        <button id="wa-confirm-yes" style="background: white; color: #4CAF50; border: none; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600;">Sí, registrar</button>
+        <button id="wa-confirm-no" style="background: transparent; color: white; border: 1px solid white; padding: 0.5rem 1rem; border-radius: 4px; cursor: pointer; font-weight: 600;">No envié</button>
+      `;
+
+      document.body.prepend(banner);
+
+      // Auto-hide after 5 minutes
+      if (waLogTimeout) clearTimeout(waLogTimeout);
+      waLogTimeout = setTimeout(() => {
+        banner.remove();
+        pendingWaLog = null;
+      }, 300000);
+
+      // Confirm button
+      document.getElementById('wa-confirm-yes').addEventListener('click', async () => {
+        if (!pendingWaLog) return;
+
+        const token = localStorage.getItem('casflou_session');
+        const apiBaseUrl = localStorage.getItem('casflou_api_url') ||
+                          (window.location.hostname === 'localhost' ? 'http://localhost:8790' : window.location.origin);
+
+        try {
+          const response = await fetch(apiBaseUrl + '/api/log', {
+            method: 'POST',
+            headers: {
+              'Authorization': 'Bearer ' + token,
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+              invoice_id: pendingWaLog.invoiceId,
+              debtor_id: pendingWaLog.debtorId,
+              action_type: 'WHATSAPP',
+              outcome: 'NO_RESPONSE',
+              notes: pendingWaLog.message || null
+            })
+          });
+
+          if (response.ok) {
+            banner.style.background = '#2196F3';
+            banner.innerHTML = '<span>✅ Acción registrada</span>';
+            clearTimeout(waLogTimeout);
+            setTimeout(() => banner.remove(), 2000);
+            await loadQueue();
+          } else {
+            alert('Error al registrar');
+          }
+        } catch (error) {
+          console.error('Error logging WhatsApp:', error);
+          alert('Error de conexión');
+        } finally {
+          pendingWaLog = null;
+        }
+      });
+
+      // No button
+      document.getElementById('wa-confirm-no').addEventListener('click', () => {
+        banner.remove();
+        pendingWaLog = null;
+        if (waLogTimeout) clearTimeout(waLogTimeout);
+      });
+    }
+
+    // Detect return from WhatsApp using Page Visibility API
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible' && pendingWaLog) {
+        console.log('📱 User returned from WhatsApp');
+        showWaConfirmationBanner();
+      }
+    });
+
     // Send WhatsApp button - uses current textarea content
     document.getElementById('draft-whatsapp-btn')?.addEventListener('click', async () => {
       const textarea = document.getElementById('draft-message-text');
@@ -574,6 +685,18 @@
             tone: document.getElementById('draft-tone-label').textContent.toLowerCase()
           })
         });
+
+        // Store pending WhatsApp log in sessionStorage (for auto-log on return)
+        const card = document.querySelector(`[data-invoice-id='${currentDraftInvoiceId}']`);
+        const debtorName = card?.querySelector('.card-debtor-name')?.textContent || 'Cliente';
+
+        pendingWaLog = {
+          invoiceId: currentDraftInvoiceId,
+          debtorId: currentDraftDebtorId,
+          debtorName: debtorName,
+          message: message,
+          timestamp: new Date().toISOString()
+        };
 
         // Open WhatsApp with the message
         const encoded = encodeURIComponent(message);
